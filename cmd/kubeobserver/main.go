@@ -14,9 +14,4 @@ func printAll(vals []interface{}) {
 
 func main() {
 	handlers.SendMessage("test message for slack")
-
-	
-
-	var names = []interface{"shai", "coral", "itay"}
-	printAll(names)
 }
