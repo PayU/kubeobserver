@@ -1,12 +1,22 @@
 package main
 
 import (
-	"github.com/fatih/color"
+	"fmt"
+
 	"github.com/shyimo/kubeobserver/pkg/handlers"
-	"rsc.io/quote"
 )
 
+func printAll(vals []interface{}) {
+	for _, val := range vals {
+		fmt.Println(val)
+	}
+}
+
 func main() {
-	handlers.SendMessage()
-	color.Cyan(quote.Hello())
+	handlers.SendMessage("test message for slack")
+
+	
+
+	var names = []interface{"shai", "coral", "itay"}
+	printAll(names)
 }

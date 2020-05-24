@@ -1,1 +1,1 @@
-kubeobserver
+Observe Kubernetes events, collect metrics & trigger endpoint receivers
