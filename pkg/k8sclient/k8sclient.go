@@ -5,9 +5,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
@@ -48,12 +52,9 @@ func initClientOutOfCluster() *kubernetes.Clientset {
 }
 
 func init() {
-	// by default, we are trying to initalize in cluster client,
-	// if error occuer we fallback to out of cluster client
+	// by default, we are trying to initalize 'in cluster' client,
+	// if error occuer we fallback to 'out of cluster' client
 	config, err := rest.InClusterConfig()
-	if err != nil {
-		panic(err.Error())
-	}
 
 	if err != nil {
 		// out of cluster
@@ -69,7 +70,32 @@ func init() {
 		k8sClient = clientset
 	}
 
+	watchlist := cache.NewListWatchFromClient(k8sClient.CoreV1().RESTClient(), "pods", "logs", fields.Everything())
+
+	_, controller := cache.NewInformer(watchlist, &v1.Pod{}, time.Second*0,
+		cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				fmt.Printf("add: %s \n", obj.(*v1.Pod).ObjectMeta.Name)
+				// fmt.Printf("add: %s \n", obj)
+			},
+			DeleteFunc: func(obj interface{}) {
+				fmt.Printf("delete: %s \n", obj.(*v1.Pod).ObjectMeta.Name)
+			},
+			UpdateFunc: func(oldObj, newObj interface{}) {
+				fmt.Printf("old: %s, new: %s \n", oldObj.(*v1.Pod).ObjectMeta.Name, newObj.(*v1.Pod).ObjectMeta.Name)
+				fmt.Printf("old state: %s, new state: %s \n", oldObj.(*v1.Pod).Status.Phase, newObj.(*v1.Pod).Status.Phase)
+				fmt.Printf("old condition: %s, new condition: %s \n", oldObj.(*v1.Pod).Status.Conditions, newObj.(*v1.Pod).Status.Conditions)
+				fmt.Println("")
+			},
+		},
+	)
+
+	stop := make(chan struct{})
+	go controller.Run(stop)
+
 	fmt.Println("Done with init k8s client")
+	// Wait forever
+	select {}
 }
 
 // Client is getter function for k8sclient
