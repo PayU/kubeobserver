@@ -83,8 +83,19 @@ func init() {
 			},
 			UpdateFunc: func(oldObj, newObj interface{}) {
 				fmt.Printf("old: %s, new: %s \n", oldObj.(*v1.Pod).ObjectMeta.Name, newObj.(*v1.Pod).ObjectMeta.Name)
-				fmt.Printf("old state: %s, new state: %s \n", oldObj.(*v1.Pod).Status.Phase, newObj.(*v1.Pod).Status.Phase)
-				fmt.Printf("old condition: %s, new condition: %s \n", oldObj.(*v1.Pod).Status.Conditions, newObj.(*v1.Pod).Status.Conditions)
+				var oldInitContainersNames []string
+
+				for _, c := range oldObj.(*v1.Pod).Spec.InitContainers {
+					oldInitContainersNames := append(oldInitContainersNames, c.Name)
+					fmt.Printf("This is old %s's init containers: %v \n", oldObj.(*v1.Pod).ObjectMeta.Name, oldInitContainersNames)
+				}
+
+				//fmt.Printf("init containers: %v", oldObj.(*v1.Pod).Spec.InitContainers)
+				//fmt.Printf("containers: %v", oldObj.(*v1.Pod).Spec.Containers)
+				//fmt.Println("old container status: ", "new container status: ", oldObj.(*v1.Pod).Status.ContainerStatuses, newObj.(*v1.Pod).Status.ContainerStatuses)
+				//fmt.Println("old init container status: ", "new init container status: ", oldObj.(*v1.Pod).Status.InitContainerStatuses, newObj.(*v1.Pod).Status.InitContainerStatuses)
+				//fmt.Printf("old state: %s, new state: %s \n", oldObj.(*v1.Pod).Status.Phase, newObj.(*v1.Pod).Status.Phase)
+				//fmt.Printf("old condition: %s, new condition: %s \n", oldObj.(*v1.Pod).Status.Conditions, newObj.(*v1.Pod).Status.Conditions)
 				fmt.Println("")
 			},
 		},
