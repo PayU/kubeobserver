@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	v1 "k8s.io/api/core/v1"
@@ -82,21 +83,9 @@ func init() {
 				fmt.Printf("delete: %s \n", obj.(*v1.Pod).ObjectMeta.Name)
 			},
 			UpdateFunc: func(oldObj, newObj interface{}) {
-				fmt.Printf("old: %s, new: %s \n", oldObj.(*v1.Pod).ObjectMeta.Name, newObj.(*v1.Pod).ObjectMeta.Name)
-				var oldInitContainersNames []string
-
-				for _, c := range oldObj.(*v1.Pod).Spec.InitContainers {
-					oldInitContainersNames := append(oldInitContainersNames, c.Name)
-					fmt.Printf("This is old %s's init containers: %v \n", oldObj.(*v1.Pod).ObjectMeta.Name, oldInitContainersNames)
-				}
-
-				//fmt.Printf("init containers: %v", oldObj.(*v1.Pod).Spec.InitContainers)
-				//fmt.Printf("containers: %v", oldObj.(*v1.Pod).Spec.Containers)
-				//fmt.Println("old container status: ", "new container status: ", oldObj.(*v1.Pod).Status.ContainerStatuses, newObj.(*v1.Pod).Status.ContainerStatuses)
-				//fmt.Println("old init container status: ", "new init container status: ", oldObj.(*v1.Pod).Status.InitContainerStatuses, newObj.(*v1.Pod).Status.InitContainerStatuses)
-				//fmt.Printf("old state: %s, new state: %s \n", oldObj.(*v1.Pod).Status.Phase, newObj.(*v1.Pod).Status.Phase)
-				//fmt.Printf("old condition: %s, new condition: %s \n", oldObj.(*v1.Pod).Status.Conditions, newObj.(*v1.Pod).Status.Conditions)
-				fmt.Println("")
+				fmt.Printf("\n %s in namespace %s has been updated from %s to %s \n", newObj.(*v1.Pod).ObjectMeta.Name, newObj.(*v1.Pod).ObjectMeta.Namespace, oldObj.(*v1.Pod).Status.Phase, newObj.(*v1.Pod).Status.Phase)
+				formatConditionsArray(newObj.(*v1.Pod))
+				//fmt.Printf("\n The update was initiated since %s's state changed from %s to %s \n", newObj.(*v1.Pod).ObjectMeta.Name, oldObj.(*v1.Pod).Status.Conditions, newObj.(*v1.Pod).Status.Conditions)
 			},
 		},
 	)
@@ -112,4 +101,67 @@ func init() {
 // Client is getter function for k8sclient
 func Client() *kubernetes.Clientset {
 	return k8sClient
+}
+
+func formatConditionsArray(p *v1.Pod) {
+	var podConditionsArray []v1.PodCondition = p.Status.Conditions
+	var initContainerStatusArray []v1.ContainerStatus = p.Status.InitContainerStatuses
+
+	for _, c := range podConditionsArray {
+		if c.Type == "Initialized" && c.Status != "True" {
+			var initContainersNames string = getStringInBetween(c.Message, "[", "]")
+			fmt.Printf("\n %s's init-container(s) %s has moved to an incomplete status \n", p.ObjectMeta.Name, initContainersNames)
+			parseContainerStatus(initContainerStatusArray)
+
+		} else if c.Type == "Ready" && c.Status != "True" {
+			var containersNames string = getStringInBetween(c.Message, "[", "]")
+			fmt.Printf("\n %s's container(s) %s has moved to an incomplete status \n", p.ObjectMeta.Name, containersNames)
+		}
+	}
+}
+
+func parsePodCondition(pc v1.PodCondition) {
+	//
+}
+
+func parseContainerStatus(cs []v1.ContainerStatus) {
+	for _, s := range cs {
+		if s.Ready != true {
+			var containerCurrentStateString string = parseContainerState(s.State)
+			var containerLastStateString string = parseContainerState(s.LastTerminationState)
+			fmt.Printf("Container %s has terminated after %d restarts due to %s, currently in %s state", s.Name, s.RestartCount, containerLastStateString, containerCurrentStateString)
+		}
+	}
+}
+
+func parseContainerState(cs v1.ContainerState) string {
+	var s string
+
+	if cs.Waiting != nil {
+		//
+	} else if cs.Running != nil {
+
+	} else if cs.Terminated != nil {
+
+	}
+
+	return s
+}
+
+// getStringInBetween Returns empty string if no start string found
+func getStringInBetween(str string, start string, end string) (result string) {
+	s := strings.Index(str, start)
+
+	if s == -1 {
+		return
+	}
+
+	s += len(start)
+	e := strings.Index(str, end)
+
+	if e == -1 {
+		return
+	}
+
+	return str[s:e]
 }
