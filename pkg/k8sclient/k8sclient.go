@@ -83,9 +83,14 @@ func init() {
 				fmt.Printf("delete: %s \n", obj.(*v1.Pod).ObjectMeta.Name)
 			},
 			UpdateFunc: func(oldObj, newObj interface{}) {
-				fmt.Printf("\n %s in namespace %s has been updated from %s to %s \n", newObj.(*v1.Pod).ObjectMeta.Name, newObj.(*v1.Pod).ObjectMeta.Namespace, oldObj.(*v1.Pod).Status.Phase, newObj.(*v1.Pod).Status.Phase)
+				if oldObj.(*v1.Pod).Status.Phase != newObj.(*v1.Pod).Status.Phase {
+					fmt.Printf("%s in namespace %s has been updated from %s to %s \n", newObj.(*v1.Pod).ObjectMeta.Name, newObj.(*v1.Pod).ObjectMeta.Namespace, oldObj.(*v1.Pod).Status.Phase, newObj.(*v1.Pod).Status.Phase)
+				} else if oldObj.(*v1.Pod).Status.Phase == "" {
+					fmt.Printf("%s in namespace %s has been updated to %s \n", newObj.(*v1.Pod).ObjectMeta.Name, newObj.(*v1.Pod).ObjectMeta.Namespace, newObj.(*v1.Pod).Status.Phase)
+				}
+
+				//formatConditionsArray(oldObj.(*v1.Pod))
 				formatConditionsArray(newObj.(*v1.Pod))
-				//fmt.Printf("\n The update was initiated since %s's state changed from %s to %s \n", newObj.(*v1.Pod).ObjectMeta.Name, oldObj.(*v1.Pod).Status.Conditions, newObj.(*v1.Pod).Status.Conditions)
 			},
 		},
 	)
@@ -105,31 +110,33 @@ func Client() *kubernetes.Clientset {
 
 func formatConditionsArray(p *v1.Pod) {
 	var podConditionsArray []v1.PodCondition = p.Status.Conditions
-	var initContainerStatusArray []v1.ContainerStatus = p.Status.InitContainerStatuses
+	var containersStatusArray []v1.ContainerStatus
+	var containerFunction string
 
 	for _, c := range podConditionsArray {
 		if c.Type == "Initialized" && c.Status != "True" {
-			var initContainersNames string = getStringInBetween(c.Message, "[", "]")
-			fmt.Printf("\n %s's init-container(s) %s has moved to an incomplete status \n", p.ObjectMeta.Name, initContainersNames)
-			parseContainerStatus(initContainerStatusArray)
+			containerFunction = "init-"
+			containersStatusArray = p.Status.InitContainerStatuses
+			fmt.Printf("Change in one or more of %s's %scontainers: \n", p.ObjectMeta.Name, containerFunction)
+		} else if c.Type == "ContainersReady" && c.Status != "True" {
+			containersStatusArray = p.Status.ContainerStatuses
+			fmt.Printf("Change in one or more of %s's %scontainers: \n", p.ObjectMeta.Name, containerFunction)
+		}
 
-		} else if c.Type == "Ready" && c.Status != "True" {
-			var containersNames string = getStringInBetween(c.Message, "[", "]")
-			fmt.Printf("\n %s's container(s) %s has moved to an incomplete status \n", p.ObjectMeta.Name, containersNames)
+		if len(containersStatusArray) > 0 {
+			parseContainerStatus(containersStatusArray)
 		}
 	}
 }
 
-func parsePodCondition(pc v1.PodCondition) {
-	//
-}
-
 func parseContainerStatus(cs []v1.ContainerStatus) {
 	for _, s := range cs {
-		if s.Ready != true {
-			var containerCurrentStateString string = parseContainerState(s.State)
-			var containerLastStateString string = parseContainerState(s.LastTerminationState)
-			fmt.Printf("Container %s has terminated after %d restarts due to %s, currently in %s state", s.Name, s.RestartCount, containerLastStateString, containerCurrentStateString)
+		var containerStateString string = parseContainerState(s.State)
+		fmt.Printf("%s. The Container had %d restarts and %s", s.Name, s.RestartCount, containerStateString)
+
+		if s.LastTerminationState.Waiting != nil && s.LastTerminationState.Running != nil && s.LastTerminationState.Terminated != nil {
+			parseContainerState(s.LastTerminationState)
+			fmt.Printf(" %s. Last time this container %s it was after %d restarts", s.Name, containerStateString, s.RestartCount)
 		}
 	}
 }
@@ -138,11 +145,15 @@ func parseContainerState(cs v1.ContainerState) string {
 	var s string
 
 	if cs.Waiting != nil {
-		//
+		s = fmt.Sprint("is waiting since ", cs.Waiting.Reason, "\n")
+
+		if cs.Waiting.Message != "" {
+			s = fmt.Sprint("is waiting since ", cs.Waiting.Reason, " with following info: ", cs.Waiting.Message, "\n")
+		}
 	} else if cs.Running != nil {
-
+		s = fmt.Sprint("has started at ", cs.Running.StartedAt, "\n")
 	} else if cs.Terminated != nil {
-
+		s = fmt.Sprint("has been terminated at ", cs.Terminated.FinishedAt, " with status code ", cs.Terminated.ExitCode, " after receiving a ", cs.Terminated.Signal, " signal \n")
 	}
 
 	return s
