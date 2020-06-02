@@ -111,21 +111,22 @@ func Client() *kubernetes.Clientset {
 func formatConditionsArray(p *v1.Pod) {
 	var podConditionsArray []v1.PodCondition = p.Status.Conditions
 	var containersStatusArray []v1.ContainerStatus
-	var containerFunction string
+	var initContainersStatusArray []v1.ContainerStatus
 
 	for _, c := range podConditionsArray {
 		if c.Type == "Initialized" && c.Status != "True" {
-			containerFunction = "init-"
-			containersStatusArray = p.Status.InitContainerStatuses
-			fmt.Printf("Change in one or more of %s's %scontainers: \n", p.ObjectMeta.Name, containerFunction)
+			initContainersStatusArray = p.Status.InitContainerStatuses
 		} else if c.Type == "ContainersReady" && c.Status != "True" {
 			containersStatusArray = p.Status.ContainerStatuses
-			fmt.Printf("Change in one or more of %s's %scontainers: \n", p.ObjectMeta.Name, containerFunction)
 		}
+	}
 
-		if len(containersStatusArray) > 0 {
-			parseContainerStatus(containersStatusArray)
-		}
+	if len(initContainersStatusArray) > 0 {
+		fmt.Printf("Change in one or more of %s's init-containers: \n", p.ObjectMeta.Name)
+		parseContainerStatus(initContainersStatusArray)
+	} else if len(containersStatusArray) > 0 {
+		fmt.Printf("Change in one or more of %s's containers: \n", p.ObjectMeta.Name)
+		parseContainerStatus(containersStatusArray)
 	}
 }
 
