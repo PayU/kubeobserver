@@ -86,21 +86,12 @@ func init() {
 			AddFunc: func(obj interface{}) {
 				if (InitTime).Before(obj.(*v1.Pod).ObjectMeta.CreationTimestamp.Time) {
 					fmt.Printf("Pod %s has been added \n", obj.(*v1.Pod).ObjectMeta.Name)
-					// fmt.Printf("add: %s \n", obj)
 				}
 			},
 			DeleteFunc: func(obj interface{}) {
 				fmt.Printf("Pod %s has been deleted \n", obj.(*v1.Pod).ObjectMeta.Name)
 			},
 			UpdateFunc: func(oldObj interface{}, newObj interface{}) {
-				// if oldObj.(*v1.Pod).Status.Phase != newObj.(*v1.Pod).Status.Phase {
-				// 	fmt.Printf("Pod %s in namespace %s has been updated from %s to %s at %v\n", newObj.(*v1.Pod).ObjectMeta.Name, newObj.(*v1.Pod).ObjectMeta.Namespace, oldObj.(*v1.Pod).Status.Phase, newObj.(*v1.Pod).Status.Phase, time.Now())
-				// 	formatConditionsArray(newObj.(*v1.Pod))
-				// } else if oldObj.(*v1.Pod).Status.Phase == newObj.(*v1.Pod).Status.Phase {
-				// 	fmt.Printf("Pod %s in namespace %s remained in phase at %v\n", oldObj.(*v1.Pod).ObjectMeta.Name, oldObj.(*v1.Pod).ObjectMeta.Namespace, time.Now())
-				// 	formatConditionsArray(oldObj.(*v1.Pod))
-				// }
-
 				equal, oldAllT, newAllT := compareConditionsArray(oldObj.(*v1.Pod), newObj.(*v1.Pod))
 
 				if !equal {
