@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	v1 "k8s.io/api/core/v1"
@@ -17,6 +16,14 @@ import (
 )
 
 var k8sClient *kubernetes.Clientset
+
+type podStatusByConditions struct {
+	Ready       bool
+	Init        bool
+	Sched       bool
+	ContainersR bool
+	AllT        bool
+}
 
 func homeDir() string {
 	if h := os.Getenv("HOME"); h != "" {
@@ -72,25 +79,43 @@ func init() {
 	}
 
 	watchlist := cache.NewListWatchFromClient(k8sClient.CoreV1().RESTClient(), "pods", "logs", fields.Everything())
+	var InitTime = time.Now()
 
 	_, controller := cache.NewInformer(watchlist, &v1.Pod{}, time.Second*0,
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
-				fmt.Printf("add: %s \n", obj.(*v1.Pod).ObjectMeta.Name)
-				// fmt.Printf("add: %s \n", obj)
+				if (InitTime).Before(obj.(*v1.Pod).ObjectMeta.CreationTimestamp.Time) {
+					fmt.Printf("Pod %s has been added \n", obj.(*v1.Pod).ObjectMeta.Name)
+					// fmt.Printf("add: %s \n", obj)
+				}
 			},
 			DeleteFunc: func(obj interface{}) {
-				fmt.Printf("delete: %s \n", obj.(*v1.Pod).ObjectMeta.Name)
+				fmt.Printf("Pod %s has been deleted \n", obj.(*v1.Pod).ObjectMeta.Name)
 			},
-			UpdateFunc: func(oldObj, newObj interface{}) {
-				if oldObj.(*v1.Pod).Status.Phase != newObj.(*v1.Pod).Status.Phase {
-					fmt.Printf("%s in namespace %s has been updated from %s to %s \n", newObj.(*v1.Pod).ObjectMeta.Name, newObj.(*v1.Pod).ObjectMeta.Namespace, oldObj.(*v1.Pod).Status.Phase, newObj.(*v1.Pod).Status.Phase)
-				} else if oldObj.(*v1.Pod).Status.Phase == "" {
-					fmt.Printf("%s in namespace %s has been updated to %s \n", newObj.(*v1.Pod).ObjectMeta.Name, newObj.(*v1.Pod).ObjectMeta.Namespace, newObj.(*v1.Pod).Status.Phase)
+			UpdateFunc: func(oldObj interface{}, newObj interface{}) {
+				// if oldObj.(*v1.Pod).Status.Phase != newObj.(*v1.Pod).Status.Phase {
+				// 	fmt.Printf("Pod %s in namespace %s has been updated from %s to %s at %v\n", newObj.(*v1.Pod).ObjectMeta.Name, newObj.(*v1.Pod).ObjectMeta.Namespace, oldObj.(*v1.Pod).Status.Phase, newObj.(*v1.Pod).Status.Phase, time.Now())
+				// 	formatConditionsArray(newObj.(*v1.Pod))
+				// } else if oldObj.(*v1.Pod).Status.Phase == newObj.(*v1.Pod).Status.Phase {
+				// 	fmt.Printf("Pod %s in namespace %s remained in phase at %v\n", oldObj.(*v1.Pod).ObjectMeta.Name, oldObj.(*v1.Pod).ObjectMeta.Namespace, time.Now())
+				// 	formatConditionsArray(oldObj.(*v1.Pod))
+				// }
+
+				equal, oldAllT, newAllT := compareConditionsArray(oldObj.(*v1.Pod), newObj.(*v1.Pod))
+
+				if !equal {
+					fmt.Printf("Pod %s in namespace %s has changed at %v\n", oldObj.(*v1.Pod).ObjectMeta.Name, oldObj.(*v1.Pod).ObjectMeta.Namespace, time.Now())
+
+					if oldAllT {
+						formatConditionsArray(newObj.(*v1.Pod))
+					} else if newAllT {
+						formatConditionsArray(oldObj.(*v1.Pod))
+					} else {
+						formatConditionsArray(oldObj.(*v1.Pod))
+						formatConditionsArray(newObj.(*v1.Pod))
+					}
 				}
 
-				//formatConditionsArray(oldObj.(*v1.Pod))
-				formatConditionsArray(newObj.(*v1.Pod))
 			},
 		},
 	)
@@ -110,34 +135,43 @@ func Client() *kubernetes.Clientset {
 
 func formatConditionsArray(p *v1.Pod) {
 	var podConditionsArray []v1.PodCondition = p.Status.Conditions
-	var containersStatusArray []v1.ContainerStatus
-	var initContainersStatusArray []v1.ContainerStatus
+	pod := podStatusByConditions{true, true, true, true, true}
 
 	for _, c := range podConditionsArray {
 		if c.Type == "Initialized" && c.Status != "True" {
-			initContainersStatusArray = p.Status.InitContainerStatuses
+			pod.Init = false
+			pod.AllT = false
 		} else if c.Type == "ContainersReady" && c.Status != "True" {
-			containersStatusArray = p.Status.ContainerStatuses
+			pod.ContainersR = false
+			pod.AllT = false
+		} else if c.Type == "PodScheduled" && c.Status != "True" {
+			pod.Sched = false
+			pod.AllT = false
+		} else if c.Type == "Ready" && c.Status != "True" {
+			pod.Ready = false
+			pod.AllT = false
 		}
 	}
 
-	if len(initContainersStatusArray) > 0 {
-		fmt.Printf("Change in one or more of %s's init-containers: \n", p.ObjectMeta.Name)
-		parseContainerStatus(initContainersStatusArray)
-	} else if len(containersStatusArray) > 0 {
-		fmt.Printf("Change in one or more of %s's containers: \n", p.ObjectMeta.Name)
-		parseContainerStatus(containersStatusArray)
+	if pod.Sched && !pod.Init && !pod.ContainersR && !pod.Ready {
+		fmt.Printf("Pod %s's init-containers changed at %v: \n", p.ObjectMeta.Name, time.Now())
+		parseContainerStatus(p.Status.InitContainerStatuses)
+	} else if pod.Sched && pod.Init && !pod.ContainersR && !pod.Ready {
+		fmt.Printf("Pod %s's containers changed at %v: \n", p.ObjectMeta.Name, time.Now())
+		parseContainerStatus(p.Status.ContainerStatuses)
 	}
 }
 
 func parseContainerStatus(cs []v1.ContainerStatus) {
 	for _, s := range cs {
-		var containerStateString string = parseContainerState(s.State)
-		fmt.Printf("%s. The Container had %d restarts and %s", s.Name, s.RestartCount, containerStateString)
+		if !s.Ready {
+			var containerStateString string = parseContainerState(s.State)
+			fmt.Printf("### %s. The Container had %d restarts and %s", s.Name, s.RestartCount, containerStateString)
 
-		if s.LastTerminationState.Waiting != nil && s.LastTerminationState.Running != nil && s.LastTerminationState.Terminated != nil {
-			parseContainerState(s.LastTerminationState)
-			fmt.Printf(" %s. Last time this container %s it was after %d restarts", s.Name, containerStateString, s.RestartCount)
+			if s.LastTerminationState.Waiting != nil && s.LastTerminationState.Running != nil && s.LastTerminationState.Terminated != nil {
+				parseContainerState(s.LastTerminationState)
+				fmt.Printf("### %s. Last time this container %s it was after %d restarts", s.Name, containerStateString, s.RestartCount)
+			}
 		}
 	}
 }
@@ -160,20 +194,50 @@ func parseContainerState(cs v1.ContainerState) string {
 	return s
 }
 
-// getStringInBetween Returns empty string if no start string found
-func getStringInBetween(str string, start string, end string) (result string) {
-	s := strings.Index(str, start)
+func compareConditionsArray(op *v1.Pod, np *v1.Pod) (bool, bool, bool) {
+	var oldPodConditionsArray []v1.PodCondition = op.Status.Conditions
+	var newPodConditionsArray []v1.PodCondition = np.Status.Conditions
+	oldPod := podStatusByConditions{true, true, true, true, true}
+	newPod := podStatusByConditions{true, true, true, true, true}
 
-	if s == -1 {
-		return
+	for _, c := range oldPodConditionsArray {
+		if c.Type == "Initialized" && c.Status != "True" {
+			oldPod.Init = false
+			oldPod.AllT = false
+		} else if c.Type == "ContainersReady" && c.Status != "True" {
+			oldPod.ContainersR = false
+			oldPod.AllT = false
+		} else if c.Type == "PodScheduled" && c.Status != "True" {
+			oldPod.Sched = false
+			oldPod.AllT = false
+		} else if c.Type == "Ready" && c.Status != "True" {
+			oldPod.Ready = false
+			oldPod.AllT = false
+		}
 	}
 
-	s += len(start)
-	e := strings.Index(str, end)
-
-	if e == -1 {
-		return
+	for _, c := range newPodConditionsArray {
+		if c.Type == "Initialized" && c.Status != "True" {
+			newPod.Init = false
+			newPod.AllT = false
+		} else if c.Type == "ContainersReady" && c.Status != "True" {
+			newPod.ContainersR = false
+			newPod.AllT = false
+		} else if c.Type == "PodScheduled" && c.Status != "True" {
+			newPod.Sched = false
+			newPod.AllT = false
+		} else if c.Type == "Ready" && c.Status != "True" {
+			newPod.Ready = false
+			newPod.AllT = false
+		}
 	}
 
-	return str[s:e]
+	if oldPod != newPod && oldPod.AllT && newPod.AllT {
+		return false, true, true
+	} else if oldPod != newPod && !oldPod.AllT && !newPod.AllT {
+		return false, false, false
+	}
+
+	return true, true, true
+
 }
