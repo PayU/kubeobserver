@@ -1,20 +1,13 @@
 package main
 
 import (
-	"fmt"
+	"time"
 
-	"github.com/shyimo/kubeobserver/pkg/k8sclient"
-
+	"github.com/shyimo/kubeobserver/pkg/controller"
 	"github.com/shyimo/kubeobserver/pkg/handlers"
 )
 
-func printAll(vals []interface{}) {
-	for _, val := range vals {
-		fmt.Println(val)
-	}
-}
-
 func main() {
-	k8sclient.Client()
+	controller.StartWatch(time.Now())
 	handlers.SendMessage("test message for slack")
 }
