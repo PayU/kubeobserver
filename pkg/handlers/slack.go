@@ -7,25 +7,25 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
-	slack "github.com/shyimo/kubeobserver/pkg/handlers/slack"
 	"github.com/slack-go/slack"
 )
 
-type slackMessanger struct {
-	SendingFunc func()
-	Type        string
+// SlackMessanger send messages to slack
+type SlackMessanger struct {
+	Type       string
+	ChannelURL string
 }
 
 // NewSlackMessanger create new slack messanger
-func NewSlackMessanger() {
-	return &slackMessanger{SendingFunc: slack.sendMessage(), Type: "slack"}
+func NewSlackMessanger(channelURL string) *SlackMessanger {
+	return &SlackMessanger{
+		Type:       "slack",
+		ChannelURL: channelURL,
+	}
 }
 
 // SendMessage sending a message
-func (s slackMessanger) sendMessage(message string, url string) {
-	// api := slack.New("xoxb-3128660797-1178532843059-l9PE1P4l8wDaiVsLBfC0KItW")
-	// fmt.Println("Sending message to slack -> ", msg)
-
+func (s SlackMessanger) SendMessage(message string, url string) error {
 	log.Info().Msg(fmt.Sprintf("Received message in slack messanger: %s \n", message))
 
 	attachment := slack.Attachment{
@@ -39,12 +39,15 @@ func (s slackMessanger) sendMessage(message string, url string) {
 	}
 
 	log.Info().Msg(fmt.Sprintf("sending message to slack"))
-	err := slack.PostWebhook("https://hooks.slack.com/services/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", &msg)
+	err := slack.PostWebhook(url, &msg)
 	if err != nil {
 		fmt.Println(err)
+		return err
 	}
+
+	return nil
 }
 
-func getMessangerType() string {
+func (s SlackMessanger) GetMessangerType() string {
 	return "slack"
 }

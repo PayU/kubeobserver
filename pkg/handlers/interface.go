@@ -1,6 +1,6 @@
 package handlers
 
 type messanger interface {
-	sendMessage(string, string) error
-	getMessangerType() string
+	SendMessage(string, string) error
+	GetMessangerType() string
 }

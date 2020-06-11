@@ -7,7 +7,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"github.com/shyimo/kubeobserver/pkg/config"
-	slack "github.com/shyimo/kubeobserver/pkg/handlers/slack"
+	handlers "github.com/shyimo/kubeobserver/pkg/handlers"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -51,7 +51,7 @@ func getStateChangeOfContainer(oldContainerStatus []v1.ContainerStatus, newConta
 func podEventsHandler(key string, indexer cache.Indexer) error {
 	event := podEvent{}
 	json.Unmarshal([]byte(key), &event)
-	slackMessanger := slack.NewSlackMessanger()
+	slackMessanger := handlers.NewSlackMessanger("https://hooks.slack.com/services/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")
 
 	obj, exists, err := indexer.GetByKey(event.PodName)
 	if err != nil {
@@ -69,10 +69,11 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 		case "Add":
 			if (applicationInitTime).Before(pod.ObjectMeta.CreationTimestamp.Time) {
 				log.Info().Msg(fmt.Sprintf("Pod %s has been added", pod.ObjectMeta.Name))
-				slackMessanger.SendingFunc(fmt.Sprintf("Pod %s has been added", pod.ObjectMeta.Name), "url")
+				slackMessanger.SendMessage(fmt.Sprintf("Pod %s has been added", pod.ObjectMeta.Name), slackMessanger.ChannelURL)
 			}
 		case "Delete":
 			eventMessage.WriteString(fmt.Sprintf("the pod %s in %s cluster has been deleted", pod.ObjectMeta.Name, config.ClusterName()))
+			slackMessanger.SendMessage(fmt.Sprintf("the pod %s in %s cluster has been deleted", pod.ObjectMeta.Name, config.ClusterName()), slackMessanger.ChannelURL)
 		default:
 			// update pod evenet
 			fmt.Println("Starting update event")
@@ -84,6 +85,7 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 			isStateChange, updates := getStateChangeOfContainer(event.OldPodState.Status.InitContainerStatuses, pod.Status.InitContainerStatuses)
 			if isStateChange {
 				fmt.Println(updates)
+				slackMessanger.SendMessage(strings.Join(updates, " "), slackMessanger.ChannelURL)
 			}
 
 			// pod main containers status change check
@@ -93,6 +95,7 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 			// }
 
 			fmt.Println("finished update event")
+			slackMessanger.SendMessage("finished update event", slackMessanger.ChannelURL)
 		}
 	}
 
