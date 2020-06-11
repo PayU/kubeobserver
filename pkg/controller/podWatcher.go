@@ -3,6 +3,7 @@ package controller
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/rs/zerolog/log"
 	v1 "k8s.io/api/core/v1"
@@ -10,10 +11,8 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
-	"k8s.io/klog"
 )
 
-//
 type podEvent struct {
 	EventName   string
 	PodName     string
@@ -53,19 +52,20 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 
 	obj, exists, err := indexer.GetByKey(event.PodName)
 	if err != nil {
-		klog.Errorf("Fetching object with key %s from store failed with %v", event.PodName, err)
+		log.Error().Msg(fmt.Sprintf("Fetching object with key %s from store failed with %v", event.PodName, err))
 		return err
 	}
 
 	if !exists {
-		// Below we will warm up our cache with a Pod, so that we will see a delete for one pod
-		fmt.Printf("Pod %s does not exist anymore\n", event.PodName)
+		log.Info().Msg(fmt.Sprintf("got empty result from controller indexer while trying to fetch %s pod", event.PodName))
 	} else {
 		pod := obj.(*v1.Pod)
+		var eventMessage strings.Builder
 
 		switch event.EventName {
 		case "Add":
 			if (applicationInitTime).Before(pod.ObjectMeta.CreationTimestamp.Time) {
+				eventMessage.WriteString(fmt.Sprintf("the pod %s has been added to the cluster", pod.ObjectMeta.Name))
 				log.Info().Msg(fmt.Sprintf("Pod %s has been added", pod.ObjectMeta.Name))
 			}
 		case "Delete":

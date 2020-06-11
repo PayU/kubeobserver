@@ -153,6 +153,7 @@ func (c *controller) runWorker() {
 }
 
 func init() {
+	log.Debug().Msg("Initializing k8s client")
 	// by default, we are trying to initalize 'in cluster' client,
 	// if error occuer we fallback to 'out of cluster' client
 	config, err := rest.InClusterConfig()
@@ -160,6 +161,7 @@ func init() {
 	if err != nil {
 		// out of cluster
 		k8sClient = initClientOutOfCluster()
+		log.Debug().Msg("k8s 'out of cluster' client is initialized")
 	} else {
 		// in cluster
 		clientset, err := kubernetes.NewForConfig(config)
@@ -169,6 +171,7 @@ func init() {
 		}
 
 		k8sClient = clientset
+		log.Debug().Msg("k8s 'in cluster' client is initialized")
 	}
 }
 
