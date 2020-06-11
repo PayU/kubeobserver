@@ -8,6 +8,6 @@ import (
 )
 
 func main() {
-	controller.StartWatch(time.Now())
 	handlers.SendMessage("test message for slack")
+	controller.StartWatch(time.Now())
 }

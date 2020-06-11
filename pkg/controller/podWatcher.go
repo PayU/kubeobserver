@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/rs/zerolog/log"
+	slack "github.com/shyimo/kubeobserver/pkg/handlers/slack"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -50,6 +51,7 @@ func getStateChangeOfContainer(oldContainerStatus []v1.ContainerStatus, newConta
 func podEventsHandler(key string, indexer cache.Indexer) error {
 	event := podEvent{}
 	json.Unmarshal([]byte(key), &event)
+	slackMessanger := slack.NewSlackMessanger()
 
 	obj, exists, err := indexer.GetByKey(event.PodName)
 	if err != nil {
@@ -67,6 +69,7 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 		case "Add":
 			if (applicationInitTime).Before(pod.ObjectMeta.CreationTimestamp.Time) {
 				log.Info().Msg(fmt.Sprintf("Pod %s has been added", pod.ObjectMeta.Name))
+				slackMessanger.SendingFunc(fmt.Sprintf("Pod %s has been added", pod.ObjectMeta.Name), "url")
 			}
 		case "Delete":
 			log.Info().Msg(fmt.Sprintf("Pod %s has been deleted", pod.ObjectMeta.Name))
