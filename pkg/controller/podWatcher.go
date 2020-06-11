@@ -6,11 +6,8 @@ import (
 	"strings"
 
 	"github.com/rs/zerolog/log"
-<<<<<<< HEAD
-	slack "github.com/shyimo/kubeobserver/pkg/handlers/slack"
-=======
 	"github.com/shyimo/kubeobserver/pkg/config"
->>>>>>> 37046005f17ac91c991385a27b4aa6f49765586b
+	slack "github.com/shyimo/kubeobserver/pkg/handlers/slack"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
