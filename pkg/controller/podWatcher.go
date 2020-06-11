@@ -3,18 +3,21 @@ package controller
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/rs/zerolog/log"
+<<<<<<< HEAD
 	slack "github.com/shyimo/kubeobserver/pkg/handlers/slack"
+=======
+	"github.com/shyimo/kubeobserver/pkg/config"
+>>>>>>> 37046005f17ac91c991385a27b4aa6f49765586b
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
-	"k8s.io/klog"
 )
 
-//
 type podEvent struct {
 	EventName   string
 	PodName     string
@@ -55,15 +58,15 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 
 	obj, exists, err := indexer.GetByKey(event.PodName)
 	if err != nil {
-		klog.Errorf("Fetching object with key %s from store failed with %v", event.PodName, err)
+		log.Error().Msg(fmt.Sprintf("Fetching object with key %s from store failed with %v", event.PodName, err))
 		return err
 	}
 
 	if !exists {
-		// Below we will warm up our cache with a Pod, so that we will see a delete for one pod
-		fmt.Printf("Pod %s does not exist anymore\n", event.PodName)
+		log.Info().Msg(fmt.Sprintf("got empty result from controller indexer while trying to fetch %s pod", event.PodName))
 	} else {
 		pod := obj.(*v1.Pod)
+		var eventMessage strings.Builder
 
 		switch event.EventName {
 		case "Add":
@@ -72,7 +75,7 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 				slackMessanger.SendingFunc(fmt.Sprintf("Pod %s has been added", pod.ObjectMeta.Name), "url")
 			}
 		case "Delete":
-			log.Info().Msg(fmt.Sprintf("Pod %s has been deleted", pod.ObjectMeta.Name))
+			eventMessage.WriteString(fmt.Sprintf("the pod %s in %s cluster has been deleted", pod.ObjectMeta.Name, config.ClusterName()))
 		default:
 			// update pod evenet
 			fmt.Println("Starting update event")
