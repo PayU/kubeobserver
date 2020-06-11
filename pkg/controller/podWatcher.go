@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/rs/zerolog/log"
+	"github.com/shyimo/kubeobserver/pkg/config"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -65,11 +66,10 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 		switch event.EventName {
 		case "Add":
 			if (applicationInitTime).Before(pod.ObjectMeta.CreationTimestamp.Time) {
-				eventMessage.WriteString(fmt.Sprintf("the pod %s has been added to the cluster", pod.ObjectMeta.Name))
-				log.Info().Msg(fmt.Sprintf("Pod %s has been added", pod.ObjectMeta.Name))
+				eventMessage.WriteString(fmt.Sprintf("the pod %s has been added to %s cluster", pod.ObjectMeta.Name, config.ClusterName()))
 			}
 		case "Delete":
-			log.Info().Msg(fmt.Sprintf("Pod %s has been deleted", pod.ObjectMeta.Name))
+			eventMessage.WriteString(fmt.Sprintf("the pod %s in %s cluster has been deleted", pod.ObjectMeta.Name, config.ClusterName()))
 		default:
 			// update pod evenet
 			fmt.Println("Starting update event")
