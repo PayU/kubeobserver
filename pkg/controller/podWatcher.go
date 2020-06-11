@@ -13,46 +13,36 @@ import (
 	"k8s.io/klog"
 )
 
-type podContainerStatus struct {
-	containerName string
-	status        string
-}
-
+//
 type podEvent struct {
 	EventName   string
 	PodName     string
 	OldPodState *v1.Pod
 }
 
-func printSlice(s []string) {
-	fmt.Printf("len=%d cap=%d %v\n", len(s), cap(s), s)
-}
-
-func podUpdateEventHandler(oldPod *v1.Pod, newPod *v1.Pod) {
-	fmt.Println("Starting update event")
-	oldInitContainerStatuses := oldPod.Status.InitContainerStatuses
-	// oldContainerStatuses := oldPod.Status.ContainerStatuses
-	newInitContainerStatuses := newPod.Status.InitContainerStatuses
-	// newContainerStatuses := newPod.Status.ContainerStatuses
-
+// getStateChangeOfContainer will check the different between the continers
+// from the old state compare to the new state. the ContainerStatus slice can be the init continers or the reguler continers
+// return true in case the state changed and the information about the change
+func getStateChangeOfContainer(oldContainerStatus []v1.ContainerStatus, newContainerStatus []v1.ContainerStatus) (bool, []string) {
+	result := make([]string, 0)
 	oldState := make(map[string]string)
 	newState := make(map[string]string)
 
-	for _, container := range oldInitContainerStatuses {
-		oldState[container.Name] = fmt.Sprintf("The Container %s state %s\n", container.Name, parseContainerState(container.State))
+	for _, container := range oldContainerStatus {
+		oldState[container.Name] = fmt.Sprintf("the container %s %s\n", container.Name, parseContainerState(container.State))
 	}
 
-	for _, container := range newInitContainerStatuses {
-		newState[container.Name] = fmt.Sprintf("The Container %s state %s\n", container.Name, parseContainerState(container.State))
+	for _, container := range newContainerStatus {
+		newState[container.Name] = fmt.Sprintf("the container %s %s\n", container.Name, parseContainerState(container.State))
 	}
 
 	for containerName := range newState {
 		if oldState[containerName] != newState[containerName] {
-			fmt.Println(newState[containerName])
+			result = append(result, newState[containerName])
 		}
 	}
 
-	fmt.Println("finished update event")
+	return len(result) > 0, result
 }
 
 // podEventsHandler is the business logic of the pod controller.
@@ -82,8 +72,24 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 			log.Info().Msg(fmt.Sprintf("Pod %s has been deleted", pod.ObjectMeta.Name))
 		default:
 			// update pod evenet
-			podUpdateEventHandler(event.OldPodState, pod)
-			// formatConditionsArray(pod)
+			fmt.Println("Starting update event")
+			// oldContainerStatuses := oldPod.Status.ContainerStatuses
+
+			// newContainerStatuses := newPod.Status.ContainerStatuses
+
+			// pod init containers status change check
+			isStateChange, updates := getStateChangeOfContainer(event.OldPodState.Status.InitContainerStatuses, pod.Status.InitContainerStatuses)
+			if isStateChange {
+				fmt.Println(updates)
+			}
+
+			// pod main containers status change check
+			// isStateChange, updates = getStateChangeOfContainer(event.OldPodState.Status.ContainerStatuses, pod.Status.ContainerStatuses)
+			// if isStateChange {
+			// 	fmt.Println(updates)
+			// }
+
+			fmt.Println("finished update event")
 		}
 	}
 
@@ -162,48 +168,11 @@ func newPodController() *controller {
 	return controller
 }
 
-func formatConditionsArray(p *v1.Pod) {
-
-	parseContainerStatus(p.Status.InitContainerStatuses)
-	parseContainerStatus(p.Status.ContainerStatuses)
-}
-
-func parseContainerStatus(cs []v1.ContainerStatus) {
-	for _, s := range cs {
-		var containerStateString string = parseContainerState(s.State)
-		fmt.Printf("The Container %s state %s", s.Name, containerStateString)
-
-		if s.LastTerminationState.Waiting != nil && s.LastTerminationState.Running != nil && s.LastTerminationState.Terminated != nil {
-			parseContainerState(s.LastTerminationState)
-			fmt.Printf("%s. Last time this container %s it was after %d restarts", s.Name, containerStateString, s.RestartCount)
-		}
-	}
-}
-
 func parseContainerState(cs v1.ContainerState) string {
 	var s string
 
 	if cs.Waiting != nil {
 		s = fmt.Sprint("is waiting since ", cs.Waiting.Reason, "\n")
-
-		if cs.Waiting.Message != "" {
-			s = fmt.Sprint("is waiting since ", cs.Waiting.Reason, " with following info: ", cs.Waiting.Message, "\n")
-		}
-	} else if cs.Running != nil {
-		s = fmt.Sprint("has started at ", cs.Running.StartedAt, "\n")
-	} else if cs.Terminated != nil {
-		s = fmt.Sprint("has been terminated at ", cs.Terminated.FinishedAt, " with status code ", cs.Terminated.ExitCode, " after receiving a ", cs.Terminated.Signal, " signal \n")
-	}
-
-	return s
-}
-
-func parseContainerState2(cs v1.ContainerState) string {
-	var s string
-
-	if cs.Waiting != nil {
-
-		s = fmt.Sprint("is waiting ", cs.Waiting.Reason, "\n")
 
 		if cs.Waiting.Message != "" {
 			s = fmt.Sprint("is waiting since ", cs.Waiting.Reason, " with following info: ", cs.Waiting.Message, "\n")
