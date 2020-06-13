@@ -22,6 +22,78 @@ type podEvent struct {
 	OldPodState *v1.Pod
 }
 
+func newPodController() *controller {
+	// create the pod watcher
+	podListWatcher := cache.NewListWatchFromClient(k8sClient.CoreV1().RESTClient(), "pods", "logs", fields.Everything())
+
+	// create the workqueue
+	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
+
+	// Bind the workqueue to a cache with the help of an informer. This way we make sure that
+	// whenever the cache is updated, the pod key is added to the workqueue.
+	// Note that when we finally process the item from the workqueue, we might see a newer version
+	// of the Pod than the version which was responsible for triggering the update.
+	indexer, informer := cache.NewIndexerInformer(podListWatcher, &v1.Pod{}, 0, cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			key, err := cache.MetaNamespaceKeyFunc(obj)
+			if err == nil {
+				out, err := json.Marshal(podEvent{
+					EventName:   "Add",
+					PodName:     key,
+					OldPodState: nil,
+				})
+
+				if err == nil {
+					queue.Add(string(out))
+				}
+			}
+		},
+		UpdateFunc: func(old interface{}, new interface{}) {
+			key, err := cache.MetaNamespaceKeyFunc(new)
+			if err == nil {
+				out, err := json.Marshal(podEvent{
+					EventName:   "Update",
+					PodName:     key,
+					OldPodState: old.(*v1.Pod),
+				})
+
+				if err == nil {
+					queue.Add(string(out))
+				}
+			}
+		},
+		DeleteFunc: func(obj interface{}) {
+			key, err := cache.MetaNamespaceKeyFunc(obj)
+			if err == nil {
+				out, err := json.Marshal(podEvent{
+					EventName:   "Delete",
+					PodName:     key,
+					OldPodState: nil,
+				})
+
+				if err == nil {
+					queue.Add(string(out))
+				}
+			}
+		},
+	}, cache.Indexers{})
+
+	controller := newController(queue, indexer, informer, podEventsHandler, "pod")
+
+	// We can now warm up the cache for initial synchronization.
+	// Let's suppose that we knew about a pod "testPod" on our last run, therefore add it to the cache.
+	// If this pod is not there anymore, the controller will be notified about the removal after the
+	// cache has synchronized.
+	indexer.Add(&v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "testPod",
+			Namespace: v1.NamespaceDefault,
+		},
+	})
+
+	return controller
+}
+
 // getStateChangeOfContainer will check the different between the continers
 // from the old state compare to the new state. the ContainerStatus slice can be the init continers or the reguler continers
 // retrun slice of strings that that represents human readable information about the change
@@ -124,78 +196,6 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 	return nil
 }
 
-func newPodController() *controller {
-	// create the pod watcher
-	podListWatcher := cache.NewListWatchFromClient(k8sClient.CoreV1().RESTClient(), "pods", "logs", fields.Everything())
-
-	// create the workqueue
-	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
-
-	// Bind the workqueue to a cache with the help of an informer. This way we make sure that
-	// whenever the cache is updated, the pod key is added to the workqueue.
-	// Note that when we finally process the item from the workqueue, we might see a newer version
-	// of the Pod than the version which was responsible for triggering the update.
-	indexer, informer := cache.NewIndexerInformer(podListWatcher, &v1.Pod{}, 0, cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			key, err := cache.MetaNamespaceKeyFunc(obj)
-			if err == nil {
-				out, err := json.Marshal(podEvent{
-					EventName:   "Add",
-					PodName:     key,
-					OldPodState: nil,
-				})
-
-				if err == nil {
-					queue.Add(string(out))
-				}
-			}
-		},
-		UpdateFunc: func(old interface{}, new interface{}) {
-			key, err := cache.MetaNamespaceKeyFunc(new)
-			if err == nil {
-				out, err := json.Marshal(podEvent{
-					EventName:   "Update",
-					PodName:     key,
-					OldPodState: old.(*v1.Pod),
-				})
-
-				if err == nil {
-					queue.Add(string(out))
-				}
-			}
-		},
-		DeleteFunc: func(obj interface{}) {
-			key, err := cache.MetaNamespaceKeyFunc(obj)
-			if err == nil {
-				out, err := json.Marshal(podEvent{
-					EventName:   "Delete",
-					PodName:     key,
-					OldPodState: nil,
-				})
-
-				if err == nil {
-					queue.Add(string(out))
-				}
-			}
-		},
-	}, cache.Indexers{})
-
-	controller := newController(queue, indexer, informer, podEventsHandler, "pod")
-
-	// We can now warm up the cache for initial synchronization.
-	// Let's suppose that we knew about a pod "testPod" on our last run, therefore add it to the cache.
-	// If this pod is not there anymore, the controller will be notified about the removal after the
-	// cache has synchronized.
-	indexer.Add(&v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "testPod",
-			Namespace: v1.NamespaceDefault,
-		},
-	})
-
-	return controller
-}
-
 func parseContainerState(cs v1.ContainerState) string {
 	var s string
 
@@ -218,7 +218,7 @@ func parseContainerState(cs v1.ContainerState) string {
 			return ""
 		}
 
-		s = fmt.Sprint("has been terminated at ", cs.Terminated.FinishedAt, " with exit code ", cs.Terminated.ExitCode, ". Reason: ", reason, "\n")
+		s = fmt.Sprintf("has been terminated at %v with exit code %d. Reason:`%s`\n", cs.Terminated.FinishedAt, cs.Terminated.ExitCode, reason)
 	}
 
 	return s
