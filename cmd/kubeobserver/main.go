@@ -4,12 +4,12 @@ import (
 	"time"
 
 	"github.com/shyimo/kubeobserver/pkg/controller"
-	"github.com/shyimo/kubeobserver/pkg/handlers"
 	"github.com/shyimo/kubeobserver/pkg/log"
+	"github.com/shyimo/kubeobserver/pkg/receivers"
 )
 
 func main() {
 	log.Initialize()
 	controller.StartWatch(time.Now())
-	handlers.SendMessage("test message for slack")
+	receivers.SendMessage("test message for slack")
 }

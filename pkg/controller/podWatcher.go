@@ -36,7 +36,7 @@ func newPodController() *controller {
 	indexer, informer := cache.NewIndexerInformer(podListWatcher, &v1.Pod{}, 0, cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(obj)
-			if err == nil {
+			if err == nil && shouldWatchPod(key) {
 				out, err := json.Marshal(podEvent{
 					EventName:   "Add",
 					PodName:     key,
@@ -50,7 +50,7 @@ func newPodController() *controller {
 		},
 		UpdateFunc: func(old interface{}, new interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(new)
-			if err == nil {
+			if err == nil && shouldWatchPod(key) {
 				out, err := json.Marshal(podEvent{
 					EventName:   "Update",
 					PodName:     key,
@@ -64,7 +64,7 @@ func newPodController() *controller {
 		},
 		DeleteFunc: func(obj interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(obj)
-			if err == nil {
+			if err == nil && shouldWatchPod(key) {
 				out, err := json.Marshal(podEvent{
 					EventName:   "Delete",
 					PodName:     key,
@@ -153,12 +153,6 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 		var podControllerName string
 		var eventMessage strings.Builder
 
-		for _, pattern := range config.ExcludePodNamePatterns() {
-			if strings.Contains(podName, pattern) {
-				return nil
-			}
-		}
-
 		// fetch the pod owner controller
 		// this value can be any valid controller like StatefulSet, DaemonSet, ReplicaSet, Job and so on..
 		if pod.GetOwnerReferences() != nil {
@@ -239,4 +233,17 @@ func parseContainerState(cs v1.ContainerState) string {
 	}
 
 	return s
+}
+
+// iterate over the exclude pod name slice
+// and check if one (or more) of the slice members contains the pod name
+// if so, return false meaning that the event will ignored
+func shouldWatchPod(podName string) bool {
+	for _, pattern := range config.ExcludePodNamePatterns() {
+		if strings.Contains(podName, pattern) {
+			return false
+		}
+	}
+
+	return true
 }
