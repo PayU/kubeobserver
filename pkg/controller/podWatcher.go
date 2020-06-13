@@ -31,11 +31,21 @@ func getStateChangeOfContainers(oldContainerStatus []v1.ContainerStatus, newCont
 	newState := make(map[string]string)
 
 	for _, container := range oldContainerStatus {
-		oldState[container.Name] = fmt.Sprintf("the container %s %s\n", container.Name, parseContainerState(container.State))
+		state := parseContainerState(container.State)
+		if state == "" {
+			continue
+		}
+
+		oldState[container.Name] = fmt.Sprintf("the container %s %s", container.Name, parseContainerState(container.State))
 	}
 
 	for _, container := range newContainerStatus {
-		newState[container.Name] = fmt.Sprintf("the container %s %s\n", container.Name, parseContainerState(container.State))
+		state := parseContainerState(container.State)
+		if state == "" {
+			continue
+		}
+
+		newState[container.Name] = fmt.Sprintf("the container %s %s", container.Name, parseContainerState(container.State))
 	}
 
 	for containerName := range newState {
@@ -60,17 +70,21 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 	}
 
 	if !exists {
-		log.Info().Msg(fmt.Sprintf("got empty result from controller indexer while trying to fetch %s pod", event.PodName))
+		// log.Info().Msg(fmt.Sprintf("got empty result from controller indexer while trying to fetch %s pod", event.PodName))
 	} else {
 		pod := obj.(*v1.Pod)
 		podName := pod.ObjectMeta.Name
-		var eventMessage strings.Builder
+		podNamespace := pod.GetNamespace()
 		podAnnotations := pod.GetObjectMeta().GetAnnotations()
+
+		var eventMessage strings.Builder
 
 		switch event.EventName {
 		case "Add":
 			if (applicationInitTime).Before(pod.ObjectMeta.CreationTimestamp.Time) {
-				eventMessage.WriteString(fmt.Sprintf("the pod %s has been added to %s cluster", podName, config.ClusterName()))
+				eventMessage.WriteString(fmt.Sprintf("A `pod` in namesapce `%s` has been `Created`\n", podNamespace))
+				eventMessage.WriteString(fmt.Sprintf("`%s`\n", podName))
+				eventMessage.WriteString(fmt.Sprintf("environment:`%s`", config.ClusterName()))
 			}
 		case "Delete":
 			eventMessage.WriteString(fmt.Sprintf("the pod %s in %s cluster has been deleted", podName, config.ClusterName()))
@@ -92,10 +106,19 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 			podUpdates = append(podUpdates, updates...)
 
 			if len(podUpdates) > 0 {
-				fmt.Println("new update has arrived in pod", podName)
-				fmt.Println(podUpdates)
+				eventMessage.WriteString(fmt.Sprintf("A `pod` in namesapce `%s` has been `Updated`. Pod-Name:`%s`. Environment:`%s`\n", podNamespace, podName, config.ClusterName()))
+				for _, updateStr := range podUpdates {
+					eventMessage.WriteString(fmt.Sprintf("- %s", updateStr))
+				}
 			}
 		}
+
+		// if we have any events to update about,
+		// send the updates to the relevant handlers
+		if eventMessage.String() != "" {
+			fmt.Println(eventMessage.String())
+		}
+
 	}
 
 	return nil
@@ -143,14 +166,10 @@ func newPodController() *controller {
 		},
 		DeleteFunc: func(obj interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(obj)
-			fmt.Println(obj.(cache.DeletedFinalStateUnknown).Key)
-			fmt.Println(obj.(cache.DeletedFinalStateUnknown).Obj.(*v1.Pod).UID)
-
-			podName := key
 			if err == nil {
 				out, err := json.Marshal(podEvent{
 					EventName:   "Delete",
-					PodName:     podName,
+					PodName:     key,
 					OldPodState: nil,
 				})
 
@@ -189,7 +208,17 @@ func parseContainerState(cs v1.ContainerState) string {
 	} else if cs.Running != nil {
 		s = fmt.Sprint("has started at ", cs.Running.StartedAt, "\n")
 	} else if cs.Terminated != nil {
-		s = fmt.Sprint("has been terminated at ", cs.Terminated.FinishedAt, " with status code ", cs.Terminated.ExitCode, " after receiving a ", cs.Terminated.Signal, " signal \n")
+		var reason string
+
+		if cs.Terminated.Reason != "" {
+			reason = cs.Terminated.Reason
+		} else if cs.Terminated.Message != "" {
+			reason = cs.Terminated.Message
+		} else {
+			return ""
+		}
+
+		s = fmt.Sprint("has been terminated at ", cs.Terminated.FinishedAt, " with exit code ", cs.Terminated.ExitCode, ". Reason: ", reason, "\n")
 	}
 
 	return s
