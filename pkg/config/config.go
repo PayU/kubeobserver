@@ -12,12 +12,20 @@ var mandatoryEnvironmentVariables = []string{"K8S_CLUSTER_NAME"}
 
 var k8sClusterName string
 var logLevel zerolog.Level
+var excludePodNamePatterns []string
 
 func init() {
 	setLogLevel()
 	verifyMandatoryVariables()
 
 	k8sClusterName = os.Getenv("K8S_CLUSTER_NAME")
+
+	if os.Getenv("EXCLUDE_POD_NAME_PATTERNS") == "" {
+		excludePodNamePatterns = make([]string, 0)
+	} else {
+		excludePodNamePatterns = strings.Split(os.Getenv("EXCLUDE_POD_NAME_PATTERNS"), ",")
+	}
+
 }
 
 // LogLevel is a getter for zerolog log level
@@ -28,6 +36,11 @@ func LogLevel() zerolog.Level {
 // ClusterName is a getter function for the current running cluster
 func ClusterName() string {
 	return k8sClusterName
+}
+
+// ExcludePodNamePatterns is a getter function for the excludePodNamePatterns slice
+func ExcludePodNamePatterns() []string {
+	return excludePodNamePatterns
 }
 
 func verifyMandatoryVariables() {

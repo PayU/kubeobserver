@@ -142,24 +142,40 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 	}
 
 	if !exists {
-		// log.Info().Msg(fmt.Sprintf("got empty result from controller indexer while trying to fetch %s pod", event.PodName))
+		log.Info().Msg(fmt.Sprintf("got empty result from controller indexer while trying to fetch %s pod", event.PodName))
 	} else {
 		pod := obj.(*v1.Pod)
 		podName := pod.ObjectMeta.Name
 		podNamespace := pod.GetNamespace()
 		podAnnotations := pod.GetObjectMeta().GetAnnotations()
 
+		var podControllerKind string
+		var podControllerName string
 		var eventMessage strings.Builder
+
+		for _, pattern := range config.ExcludePodNamePatterns() {
+			if strings.Contains(podName, pattern) {
+				return nil
+			}
+		}
+
+		// fetch the pod owner controller
+		// this value can be any valid controller like StatefulSet, DaemonSet, ReplicaSet, Job and so on..
+		if pod.GetOwnerReferences() != nil {
+			podControllerKind = pod.GetOwnerReferences()[0].Kind
+			podControllerName = pod.GetOwnerReferences()[0].Name
+		}
 
 		switch event.EventName {
 		case "Add":
 			if (applicationInitTime).Before(pod.ObjectMeta.CreationTimestamp.Time) {
 				eventMessage.WriteString(fmt.Sprintf("A `pod` in namesapce `%s` has been `Created`\n", podNamespace))
-				eventMessage.WriteString(fmt.Sprintf("`%s`\n", podName))
-				eventMessage.WriteString(fmt.Sprintf("environment:`%s`", config.ClusterName()))
+				eventMessage.WriteString(fmt.Sprintf("Pod name:`%s`\n", podName))
+				eventMessage.WriteString(fmt.Sprintf("Environment:`%s`\n", config.ClusterName()))
+				eventMessage.WriteString(fmt.Sprintf("Controller kind:`%s`. Controller name:`%s`\n", podControllerKind, podControllerName))
 			}
 		case "Delete":
-			eventMessage.WriteString(fmt.Sprintf("the pod %s in %s cluster has been deleted", podName, config.ClusterName()))
+			eventMessage.WriteString(fmt.Sprintf("the pod %s in %s cluster has been deleted\n", podName, config.ClusterName()))
 		default:
 			// update pod evenet
 			watchInitContainers := false
@@ -178,7 +194,8 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 			podUpdates = append(podUpdates, updates...)
 
 			if len(podUpdates) > 0 {
-				eventMessage.WriteString(fmt.Sprintf("A `pod` in namesapce `%s` has been `Updated`. Pod-Name:`%s`. Environment:`%s`\n", podNamespace, podName, config.ClusterName()))
+				eventMessage.WriteString(fmt.Sprintf("A `pod` in namesapce `%s` has been `Updated`. Pod-Name:`%s`. Environment:`%s`.\n", podNamespace, podName, config.ClusterName()))
+				eventMessage.WriteString(fmt.Sprintf("Controller kind:`%s`. Controller name:`%s`. Updates:\n", podControllerKind, podControllerName))
 				for _, updateStr := range podUpdates {
 					eventMessage.WriteString(fmt.Sprintf("- %s", updateStr))
 				}
