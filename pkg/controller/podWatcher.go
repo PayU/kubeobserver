@@ -7,6 +7,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"github.com/shyimo/kubeobserver/pkg/config"
+	"github.com/shyimo/kubeobserver/pkg/receivers"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -14,7 +15,8 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
-var watchPodInitcontainersAnnotationName = "init-container-kubeobserver.io/watch"
+var receiversAnnotationName = "kubeobserver.io/receivers"
+var watchPodInitcontainersAnnotationName = "pod-init-container-kubeobserver.io/watch"
 
 type podEvent struct {
 	EventName   string
@@ -63,6 +65,8 @@ func newPodController() *controller {
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
+			fmt.Println("Here in delete")
+			fmt.Println(obj.(*v1.Pod).GetObjectMeta().GetAnnotations())
 			key, err := cache.MetaNamespaceKeyFunc(obj)
 			if err == nil && shouldWatchPod(key) {
 				out, err := json.Marshal(podEvent{
@@ -148,6 +152,11 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 		podName := pod.ObjectMeta.Name
 		podNamespace := pod.GetNamespace()
 		podAnnotations := pod.GetObjectMeta().GetAnnotations()
+		var eventReceivers []string
+
+		if podAnnotations != nil && podAnnotations[receiversAnnotationName] != "" {
+			eventReceivers = strings.Split(podAnnotations[receiversAnnotationName], ",")
+		}
 
 		var podControllerKind string
 		var podControllerName string
@@ -199,7 +208,19 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 		// if we have any events to update about,
 		// send the updates to the relevant handlers
 		if eventMessage.String() != "" {
-			fmt.Println(eventMessage.String())
+			receiverEvent := receivers.ReceiverEvent{
+				EventName: event.EventName,
+				Message:   eventMessage.String(),
+			}
+
+			for _, receiverName := range eventReceivers {
+				receivers.ReceiverMap[receiverName].HandleEvent(receiverEvent)
+			}
+
+			// act as a default receiver. the event will
+			// be logged only when running with debug log level
+			reStr, _ := json.Marshal(receiverEvent)
+			log.Debug().Msg(string(reStr))
 		}
 
 	}

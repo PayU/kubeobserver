@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 var mandatoryEnvironmentVariables = []string{"K8S_CLUSTER_NAME"}
@@ -26,6 +27,7 @@ func init() {
 		excludePodNamePatterns = strings.Split(os.Getenv("EXCLUDE_POD_NAME_PATTERNS"), ",")
 	}
 
+	outputConfig()
 }
 
 // LogLevel is a getter for zerolog log level
@@ -69,4 +71,12 @@ func setLogLevel() {
 	case "error":
 		logLevel = zerolog.ErrorLevel
 	}
+}
+
+func outputConfig() {
+	log.Info().
+		Str("k8sClusterName", k8sClusterName).
+		Str("logLevel", logLevel.String()).
+		Str("excludePodNamePatterns", strings.Join(excludePodNamePatterns, " ")).
+		Msg("kubeobserver configurations")
 }
