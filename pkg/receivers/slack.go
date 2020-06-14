@@ -1,23 +1,5 @@
 package receivers
 
-import "fmt"
-
-var slackReceiverName = "slack"
-
-type slackReceiver struct{}
-
-func init() {
-	ReceiverMap[slackReceiverName] = &slackReceiver{}
-}
-
-// HandleEvent is
-func (sr *slackReceiver) HandleEvent(receiverEvent ReceiverEvent) error {
-	fmt.Println("Sending message to slack -> ", receiverEvent.Message)
-	return nil
-}
-
-package handlers
-
 import (
 	"encoding/json"
 	"fmt"
@@ -25,47 +7,59 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
+	"github.com/shyimo/kubeobserver/pkg/config"
 	"github.com/slack-go/slack"
 )
 
-// SlackMessanger send messages to slack
-type SlackMessanger struct {
-	Type       string
-	ChannelURL string
+var slackReceiverName = "slack"
+
+// SlackReceiver is a struct built for receiving and passing onward events messages to Slack
+type SlackReceiver struct {
+	ChannelURLS []string
 }
 
-// NewSlackMessanger create new slack messanger
-func NewSlackMessanger(channelURL string) *SlackMessanger {
-	return &SlackMessanger{
-		Type:       "slack",
-		ChannelURL: channelURL,
+func init() {
+	ReceiverMap[slackReceiverName] = &SlackReceiver{
+		ChannelURLS: config.SlackURLS(),
 	}
 }
 
-// // SendMessage sending a message
-// func (s SlackMessanger) SendMessage(message string, url string) error {
-// 	log.Info().Msg(fmt.Sprintf("Received message in slack messanger: %s \n", message))
+// HandleEvent is
+func (sr *SlackReceiver) HandleEvent(receiverEvent ReceiverEvent) error {
+	chanelURLS := sr.ChannelURLS
+	message := receiverEvent.Message
+	eventName := receiverEvent.EventName
 
-// 	attachment := slack.Attachment{
-// 		Color:      "good",
-// 		AuthorName: "kubeobserver",
-// 		Text:       message,
-// 		Ts:         json.Number(strconv.FormatInt(time.Now().Unix(), 10)),
-// 	}
-// 	msg := slack.WebhookMessage{
-// 		Attachments: []slack.Attachment{attachment},
-// 	}
+	log.Info().Msg(fmt.Sprintf("Received %s message in slack receiver: %s", eventName, message))
+	log.Info().Msg(fmt.Sprintf("Building message in Slack format"))
 
-// 	log.Info().Msg(fmt.Sprintf("sending message to slack"))
-// 	err := slack.PostWebhook(url, &msg)
-// 	if err != nil {
-// 		fmt.Println(err)
-// 		return err
-// 	}
+	attachment := slack.Attachment{
+		Color:      "good",
+		AuthorName: "kubeobserver",
+		Text:       "`" + eventName + "`" + " event received: " + message,
+		Ts:         json.Number(strconv.FormatInt(time.Now().Unix(), 10)),
+	}
+	msg := slack.WebhookMessage{
+		Attachments: []slack.Attachment{attachment},
+	}
 
-// 	return nil
-// }
+	log.Info().Msg(fmt.Sprintf("Sending message to Slack: "))
 
-// func (s SlackMessanger) GetMessangerType() string {
-// 	return "slack"
-// }
+	for _, url := range chanelURLS {
+		err := slack.PostWebhook(url, &msg)
+
+		if err != nil {
+			log.Error().Msg(fmt.Sprintf("Got error while posting webhook to Slack: %s", err))
+			return err
+		}
+	}
+
+	return nil
+}
+
+// NewSlackReceiver create new slack receiverz
+func NewSlackReceiver(channelURLS []string) *SlackReceiver {
+	return &SlackReceiver{
+		ChannelURLS: channelURLS,
+	}
+}

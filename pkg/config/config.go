@@ -14,12 +14,19 @@ var mandatoryEnvironmentVariables = []string{"K8S_CLUSTER_NAME"}
 var k8sClusterName string
 var logLevel zerolog.Level
 var excludePodNamePatterns []string
+var slackURLS []string
 
 func init() {
 	setLogLevel()
 	verifyMandatoryVariables()
 
 	k8sClusterName = os.Getenv("K8S_CLUSTER_NAME")
+
+	if os.Getenv("SLACK_URLS") == "" {
+		slackURLS = make([]string, 0)
+	} else {
+		slackURLS = strings.Split(os.Getenv("SLACK_URLS"), ",")
+	}
 
 	if os.Getenv("EXCLUDE_POD_NAME_PATTERNS") == "" {
 		excludePodNamePatterns = make([]string, 0)
@@ -43,6 +50,11 @@ func ClusterName() string {
 // ExcludePodNamePatterns is a getter function for the excludePodNamePatterns slice
 func ExcludePodNamePatterns() []string {
 	return excludePodNamePatterns
+}
+
+// SlackURLS is a getter funcrtion for the slackURLS slice
+func SlackURLS() []string {
+	return slackURLS
 }
 
 func verifyMandatoryVariables() {
