@@ -208,7 +208,7 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 		}
 
 		// if we have any events to update about,
-		// send the updates to the relevant handlers
+		// send the updates to the relevant receivers
 		if eventMessage.String() != "" {
 			receiverEvent := receivers.ReceiverEvent{
 				EventName: event.EventName,
