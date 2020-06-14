@@ -125,9 +125,9 @@ func (c *controller) Run(threadiness int, stopCh chan struct{}) {
 
 	// Let the workers stop when we are done
 	defer c.queue.ShutDown()
+
 	log.Info().
-		Str("type", c.resourceType).
-		Msg("Starting controller")
+		Msg(fmt.Sprintf("starting %s controller", c.resourceType))
 
 	go c.informer.Run(stopCh)
 
@@ -153,7 +153,7 @@ func (c *controller) runWorker() {
 }
 
 func init() {
-	log.Debug().Msg("Initializing k8s client")
+	log.Info().Msg("initializing k8s client")
 	// by default, we are trying to initalize 'in cluster' client,
 	// if error occuer we fallback to 'out of cluster' client
 	config, err := rest.InClusterConfig()
@@ -161,7 +161,7 @@ func init() {
 	if err != nil {
 		// out of cluster
 		k8sClient = initClientOutOfCluster()
-		log.Debug().Msg("k8s 'out of cluster' client is initialized")
+		log.Info().Msg("k8s 'out of cluster' client is initialized")
 	} else {
 		// in cluster
 		clientset, err := kubernetes.NewForConfig(config)
@@ -171,7 +171,7 @@ func init() {
 		}
 
 		k8sClient = clientset
-		log.Debug().Msg("k8s 'in cluster' client is initialized")
+		log.Info().Msg("k8s 'in cluster' client is initialized")
 	}
 }
 

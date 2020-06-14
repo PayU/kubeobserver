@@ -7,7 +7,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"github.com/shyimo/kubeobserver/pkg/config"
-	handlers "github.com/shyimo/kubeobserver/pkg/handlers"
+	"github.com/shyimo/kubeobserver/pkg/receivers"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -15,91 +15,13 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
+var receiversAnnotationName = "kubeobserver.io/receivers"
+var watchPodInitcontainersAnnotationName = "pod-init-container-kubeobserver.io/watch"
+
 type podEvent struct {
 	EventName   string
 	PodName     string
 	OldPodState *v1.Pod
-}
-
-// getStateChangeOfContainer will check the different between the continers
-// from the old state compare to the new state. the ContainerStatus slice can be the init continers or the reguler continers
-// return true in case the state changed and the information about the change
-func getStateChangeOfContainer(oldContainerStatus []v1.ContainerStatus, newContainerStatus []v1.ContainerStatus) (bool, []string) {
-	result := make([]string, 0)
-	oldState := make(map[string]string)
-	newState := make(map[string]string)
-
-	for _, container := range oldContainerStatus {
-		oldState[container.Name] = fmt.Sprintf("the container %s %s\n", container.Name, parseContainerState(container.State))
-	}
-
-	for _, container := range newContainerStatus {
-		newState[container.Name] = fmt.Sprintf("the container %s %s\n", container.Name, parseContainerState(container.State))
-	}
-
-	for containerName := range newState {
-		if oldState[containerName] != newState[containerName] {
-			result = append(result, newState[containerName])
-		}
-	}
-
-	return len(result) > 0, result
-}
-
-// podEventsHandler is the business logic of the pod controller.
-// In case an error happened, it has to simply return the error.
-func podEventsHandler(key string, indexer cache.Indexer) error {
-	event := podEvent{}
-	json.Unmarshal([]byte(key), &event)
-	slackMessanger := handlers.NewSlackMessanger("https://hooks.slack.com/services/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")
-
-	obj, exists, err := indexer.GetByKey(event.PodName)
-	if err != nil {
-		log.Error().Msg(fmt.Sprintf("Fetching object with key %s from store failed with %v", event.PodName, err))
-		return err
-	}
-
-	if !exists {
-		log.Info().Msg(fmt.Sprintf("got empty result from controller indexer while trying to fetch %s pod", event.PodName))
-	} else {
-		pod := obj.(*v1.Pod)
-		var eventMessage strings.Builder
-
-		switch event.EventName {
-		case "Add":
-			if (applicationInitTime).Before(pod.ObjectMeta.CreationTimestamp.Time) {
-				log.Info().Msg(fmt.Sprintf("Pod %s has been added", pod.ObjectMeta.Name))
-				slackMessanger.SendMessage(fmt.Sprintf("Pod %s has been added", pod.ObjectMeta.Name), slackMessanger.ChannelURL)
-			}
-		case "Delete":
-			eventMessage.WriteString(fmt.Sprintf("the pod %s in %s cluster has been deleted", pod.ObjectMeta.Name, config.ClusterName()))
-			slackMessanger.SendMessage(fmt.Sprintf("the pod %s in %s cluster has been deleted", pod.ObjectMeta.Name, config.ClusterName()), slackMessanger.ChannelURL)
-		default:
-			// update pod evenet
-			fmt.Println("Starting update event")
-			// oldContainerStatuses := oldPod.Status.ContainerStatuses
-
-			// newContainerStatuses := newPod.Status.ContainerStatuses
-
-			// pod init containers status change check
-			isStateChange, updates := getStateChangeOfContainer(event.OldPodState.Status.InitContainerStatuses, pod.Status.InitContainerStatuses)
-			if isStateChange {
-				fmt.Println(updates)
-				slackMessanger.SendMessage(strings.Join(updates, " "), slackMessanger.ChannelURL)
-			}
-
-			// pod main containers status change check
-			// isStateChange, updates = getStateChangeOfContainer(event.OldPodState.Status.ContainerStatuses, pod.Status.ContainerStatuses)
-			// if isStateChange {
-			// 	fmt.Println(updates)
-			// }
-
-			fmt.Println("finished update event")
-			slackMessanger.SendMessage("finished update event", slackMessanger.ChannelURL)
-		}
-	}
-
-	return nil
 }
 
 func newPodController() *controller {
@@ -116,7 +38,7 @@ func newPodController() *controller {
 	indexer, informer := cache.NewIndexerInformer(podListWatcher, &v1.Pod{}, 0, cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(obj)
-			if err == nil {
+			if err == nil && shouldWatchPod(key) {
 				out, err := json.Marshal(podEvent{
 					EventName:   "Add",
 					PodName:     key,
@@ -130,7 +52,7 @@ func newPodController() *controller {
 		},
 		UpdateFunc: func(old interface{}, new interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(new)
-			if err == nil {
+			if err == nil && shouldWatchPod(key) {
 				out, err := json.Marshal(podEvent{
 					EventName:   "Update",
 					PodName:     key,
@@ -144,7 +66,7 @@ func newPodController() *controller {
 		},
 		DeleteFunc: func(obj interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(obj)
-			if err == nil {
+			if err == nil && shouldWatchPod(key) {
 				out, err := json.Marshal(podEvent{
 					EventName:   "Delete",
 					PodName:     key,
@@ -174,6 +96,143 @@ func newPodController() *controller {
 	return controller
 }
 
+// getStateChangeOfContainer will check the different between the continers
+// from the old state compare to the new state. the ContainerStatus slice can be the init continers or the reguler continers
+// retrun slice of strings that that represents human readable information about the change
+func getStateChangeOfContainers(oldContainerStatus []v1.ContainerStatus, newContainerStatus []v1.ContainerStatus) []string {
+	result := make([]string, 0)
+	oldState := make(map[string]string)
+	newState := make(map[string]string)
+
+	for _, container := range oldContainerStatus {
+		state := parseContainerState(container.State)
+		if state == "" {
+			continue
+		}
+
+		oldState[container.Name] = fmt.Sprintf("the container %s %s", container.Name, parseContainerState(container.State))
+	}
+
+	for _, container := range newContainerStatus {
+		state := parseContainerState(container.State)
+		if state == "" {
+			continue
+		}
+
+		newState[container.Name] = fmt.Sprintf("the container %s %s", container.Name, parseContainerState(container.State))
+	}
+
+	for containerName := range newState {
+		if oldState[containerName] != newState[containerName] {
+			result = append(result, newState[containerName])
+		}
+	}
+
+	return result
+}
+
+// podEventsHandler is the business logic of the pod controller.
+// In case an error happened, it has to simply return the error.
+func podEventsHandler(key string, indexer cache.Indexer) error {
+	event := podEvent{}
+	json.Unmarshal([]byte(key), &event)
+
+	obj, exists, err := indexer.GetByKey(event.PodName)
+	if err != nil {
+		log.Error().Msg(fmt.Sprintf("fetching object with key %s from store failed with %v", event.PodName, err))
+		return err
+	}
+
+	if !exists {
+		log.Info().Msg(fmt.Sprintf("got empty result from controller indexer while trying to fetch %s pod", event.PodName))
+	} else {
+		pod := obj.(*v1.Pod)
+		podName := pod.ObjectMeta.Name
+		podNamespace := pod.GetNamespace()
+		podAnnotations := pod.GetObjectMeta().GetAnnotations()
+		var eventReceivers = make([]string, 0)
+
+		if podAnnotations != nil && podAnnotations[receiversAnnotationName] != "" {
+			eventReceivers = strings.Split(podAnnotations[receiversAnnotationName], ",")
+		}
+
+		log.Debug().
+			Msg(fmt.Sprintf("found %d event receivers for pod %s in namespace %s. receivers:%s",
+				len(eventReceivers), podName, podNamespace, strings.Join(eventReceivers, ",")))
+
+		// unmark this for debug purposes
+		// eventReceivers = append(eventReceivers, "slack")
+
+		var podControllerKind string
+		var podControllerName string
+		var eventMessage strings.Builder
+
+		// fetch the pod owner controller
+		// this value can be any valid controller like StatefulSet, DaemonSet, ReplicaSet, Job and so on..
+		if pod.GetOwnerReferences() != nil {
+			podControllerKind = pod.GetOwnerReferences()[0].Kind
+			podControllerName = pod.GetOwnerReferences()[0].Name
+		}
+
+		switch event.EventName {
+		case "Add":
+			if (applicationInitTime).Before(pod.ObjectMeta.CreationTimestamp.Time) {
+				eventMessage.WriteString(fmt.Sprintf("A `pod` in namesapce `%s` has been `Created`\n", podNamespace))
+				eventMessage.WriteString(fmt.Sprintf("Pod name:`%s`\n", podName))
+				eventMessage.WriteString(fmt.Sprintf("Environment:`%s`\n", config.ClusterName()))
+				eventMessage.WriteString(fmt.Sprintf("Controller kind:`%s`. Controller name:`%s`\n", podControllerKind, podControllerName))
+			}
+		case "Delete":
+			eventMessage.WriteString(fmt.Sprintf("the pod %s in %s cluster has been deleted\n", podName, config.ClusterName()))
+		default:
+			// update pod evenet
+			watchInitContainers := false
+			podUpdates := make([]string, 0)
+
+			if podAnnotations != nil {
+				watchInitContainers = podAnnotations[watchPodInitcontainersAnnotationName] == "true"
+			}
+
+			if watchInitContainers {
+				updates := getStateChangeOfContainers(event.OldPodState.Status.InitContainerStatuses, pod.Status.InitContainerStatuses)
+				podUpdates = append(podUpdates, updates...)
+			}
+
+			updates := getStateChangeOfContainers(event.OldPodState.Status.ContainerStatuses, pod.Status.ContainerStatuses)
+			podUpdates = append(podUpdates, updates...)
+
+			if len(podUpdates) > 0 {
+				eventMessage.WriteString(fmt.Sprintf("A `pod` in namesapce `%s` has been `Updated`. Pod-Name:`%s`. Environment:`%s`.\n", podNamespace, podName, config.ClusterName()))
+				eventMessage.WriteString(fmt.Sprintf("Controller kind:`%s`. Controller name:`%s`. Updates:\n", podControllerKind, podControllerName))
+				for _, updateStr := range podUpdates {
+					eventMessage.WriteString(fmt.Sprintf("- %s", updateStr))
+				}
+			}
+		}
+
+		// if we have any events to update about,
+		// send the updates to the relevant receivers
+		if eventMessage.String() != "" {
+			receiverEvent := receivers.ReceiverEvent{
+				EventName: event.EventName,
+				Message:   eventMessage.String(),
+			}
+
+			for _, receiverName := range eventReceivers {
+				receivers.ReceiverMap[receiverName].HandleEvent(receiverEvent)
+			}
+
+			// act as a default receiver. the event will
+			// be logged only when running with debug log level
+			reStr, _ := json.Marshal(receiverEvent)
+			log.Debug().Msg(string(reStr))
+		}
+
+	}
+
+	return nil
+}
+
 func parseContainerState(cs v1.ContainerState) string {
 	var s string
 
@@ -186,8 +245,31 @@ func parseContainerState(cs v1.ContainerState) string {
 	} else if cs.Running != nil {
 		s = fmt.Sprint("has started at ", cs.Running.StartedAt, "\n")
 	} else if cs.Terminated != nil {
-		s = fmt.Sprint("has been terminated at ", cs.Terminated.FinishedAt, " with status code ", cs.Terminated.ExitCode, " after receiving a ", cs.Terminated.Signal, " signal \n")
+		var reason string
+
+		if cs.Terminated.Reason != "" {
+			reason = cs.Terminated.Reason
+		} else if cs.Terminated.Message != "" {
+			reason = cs.Terminated.Message
+		} else {
+			return ""
+		}
+
+		s = fmt.Sprintf("has been terminated at %v with exit code %d. Reason:`%s`\n", cs.Terminated.FinishedAt, cs.Terminated.ExitCode, reason)
 	}
 
 	return s
+}
+
+// iterate over the exclude pod name slice
+// and check if one (or more) of the slice members contains the pod name
+// if so, return false meaning that the event will ignored
+func shouldWatchPod(podName string) bool {
+	for _, pattern := range config.ExcludePodNamePatterns() {
+		if strings.Contains(podName, pattern) {
+			return false
+		}
+	}
+
+	return true
 }
