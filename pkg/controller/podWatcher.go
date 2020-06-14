@@ -65,8 +65,6 @@ func newPodController() *controller {
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
-			fmt.Println("Here in delete")
-			fmt.Println(obj.(*v1.Pod).GetObjectMeta().GetAnnotations())
 			key, err := cache.MetaNamespaceKeyFunc(obj)
 			if err == nil && shouldWatchPod(key) {
 				out, err := json.Marshal(podEvent{
@@ -152,11 +150,15 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 		podName := pod.ObjectMeta.Name
 		podNamespace := pod.GetNamespace()
 		podAnnotations := pod.GetObjectMeta().GetAnnotations()
-		var eventReceivers []string
+		var eventReceivers = make([]string, 0)
 
 		if podAnnotations != nil && podAnnotations[receiversAnnotationName] != "" {
 			eventReceivers = strings.Split(podAnnotations[receiversAnnotationName], ",")
 		}
+
+		log.Debug().
+			Msg(fmt.Sprintf("found %d event receivers for pod %s in namespace %s. receivers:%s",
+				len(eventReceivers), podName, podNamespace, strings.Join(eventReceivers, ",")))
 
 		var podControllerKind string
 		var podControllerName string
