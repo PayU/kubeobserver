@@ -10,7 +10,8 @@ type Receiver interface{
 	HandleEvent(receiverEvent ReceiverEvent) error
 }
 
-// ReceiverEvent is bla bla bla
+// ReceiverEvent represent any processed event 
+// from a watcher (pod watcher, config-map watcher and so on..)  
 type ReceiverEvent struct {
 	EventName string
 	Message string
