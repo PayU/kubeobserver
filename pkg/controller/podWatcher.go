@@ -160,6 +160,9 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 			Msg(fmt.Sprintf("found %d event receivers for pod %s in namespace %s. receivers:%s",
 				len(eventReceivers), podName, podNamespace, strings.Join(eventReceivers, ",")))
 
+		// unmark this for debug purposes
+		// eventReceivers = append(eventReceivers, "slack")
+
 		var podControllerKind string
 		var podControllerName string
 		var eventMessage strings.Builder
