@@ -7,7 +7,7 @@ var ReceiverMap = make(map[string]Receiver)
 
 // The Receiver interace 
 type Receiver interface{
-	HandleEvent(receiverEvent ReceiverEvent) error
+	HandleEvent(receiverEvent ReceiverEvent, c chan error)
 }
 
 // ReceiverEvent represent any processed event 
