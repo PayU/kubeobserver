@@ -29,6 +29,15 @@ func (sr *SlackReceiver) HandleEvent(receiverEvent ReceiverEvent, c chan error) 
 	chanelURLS := sr.ChannelURLS
 	message := receiverEvent.Message
 	eventName := receiverEvent.EventName
+	var colorType string
+
+	if eventName == "Add" {
+		colorType = "good"
+	} else if eventName == "Update" {
+		colorType = "warning"
+	} else if eventName == "Delete" {
+		colorType = "danger"
+	}
 
 	// no matter what happens, close the channel after function exits
 	defer close(c)
@@ -37,7 +46,7 @@ func (sr *SlackReceiver) HandleEvent(receiverEvent ReceiverEvent, c chan error) 
 	log.Debug().Msg(fmt.Sprintf("Building message in Slack format"))
 
 	attachment := slack.Attachment{
-		Color:      "good",
+		Color:      colorType,
 		AuthorName: "kubeobserver",
 		Text:       "`" + eventName + "`" + " event received: " + message,
 		Ts:         json.Number(strconv.FormatInt(time.Now().Unix(), 10)),
