@@ -29,6 +29,8 @@ func (sr *SlackReceiver) HandleEvent(receiverEvent ReceiverEvent, c chan error) 
 	chanelURLS := sr.ChannelURLS
 	message := receiverEvent.Message
 	eventName := receiverEvent.EventName
+	authorIcon := "https://raw.githubusercontent.com/kubernetes/community/master/icons/png/resources/unlabeled/pod-128.png"
+	footerIcon := "https://avatars2.githubusercontent.com/u/652790"
 	var colorType string
 
 	if eventName == "Add" {
@@ -50,6 +52,9 @@ func (sr *SlackReceiver) HandleEvent(receiverEvent ReceiverEvent, c chan error) 
 		AuthorName: "KubeObserver",
 		Text:       "`" + eventName + "`" + " event received: " + message,
 		Ts:         json.Number(strconv.FormatInt(time.Now().Unix(), 10)),
+		AuthorIcon: authorIcon,
+		Footer:     "Slack receiver",
+		FooterIcon: footerIcon,
 	}
 	msg := slack.WebhookMessage{
 		Attachments: []slack.Attachment{attachment},
