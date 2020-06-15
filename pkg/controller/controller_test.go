@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 
@@ -9,11 +8,9 @@ import (
 )
 
 func TestHomeDir(t *testing.T) {
-	fmt.Println("checking home dir")
 	homeDir := homeDir()
 
 	if reflect.TypeOf(homeDir).Kind() != reflect.String || homeDir == "" {
-		fmt.Println("error in home dir")
 		t.Errorf("Can't get home directory")
 	}
 }
