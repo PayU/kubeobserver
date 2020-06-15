@@ -155,13 +155,22 @@ func (c *controller) runWorker() {
 	}
 }
 
+// this function should be used by all receivers in order to to send
+// the updated events in parallel
+//  * receiverEvent: is the new event we want to notify the receivers about
+//  * receiversSlice is the slice of strings that contains the desired receiver names
 func sendEventToReceivers(receiverEvent receivers.ReceiverEvent, receiversSlice []string) {
 	var channelList []chan error
 
 	for _, receiverName := range receiversSlice {
 		channel := make(chan error)
 		channelList = append(channelList, channel)
-		go receivers.ReceiverMap[receiverName].HandleEvent(receiverEvent, channel)
+
+		if receivers.ReceiverMap[receiverName] != nil {
+			go receivers.ReceiverMap[receiverName].HandleEvent(receiverEvent, channel)
+		} else {
+			log.Warn().Msg(fmt.Sprintf("an event was requested to be send to unknown receiver: %s", receiverName))
+		}
 	}
 
 	waitForChannelsToClose(channelList...)
@@ -173,12 +182,16 @@ func sendEventToReceivers(receiverEvent receivers.ReceiverEvent, receiversSlice 
 }
 
 func waitForChannelsToClose(chans ...chan error) {
-	// t := time.Now()
+	t := time.Now()
 	for _, v := range chans {
-		<-v
-		// fmt.Printf("%v for chan to close\n", time.Since(t))
+		if err := <-v; err != nil {
+			log.Error().Msg(fmt.Sprintf("an error occuerd during send event to a receiver: %s", err))
+		} else {
+			log.Debug().Msg(fmt.Sprintf("%v for chan to close\n", time.Since(t)))
+		}
 	}
-	// fmt.Printf("%v for channels to close\n", time.Since(t))
+
+	log.Debug().Msg(fmt.Sprintf("%v for channels to close\n", time.Since(t)))
 }
 
 func init() {
