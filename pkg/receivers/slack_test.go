@@ -10,11 +10,9 @@ func TestHandleEvent(t *testing.T) {
 	dummyReceiverEvent := ReceiverEvent{Message: "Dummy message", EventName: "Dummy event"}
 	stopCh := make(chan error)
 
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("Falied handling event in slack receiver")
-		}
-	}()
-
 	dummySlackReceiver.HandleEvent(dummyReceiverEvent, stopCh)
+
+	if e := <-stopCh; e != nil {
+		t.Errorf("Falied handling event in slack receiver")
+	}
 }
