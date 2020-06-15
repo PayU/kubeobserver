@@ -25,7 +25,7 @@ func init() {
 }
 
 // HandleEvent is
-func (sr *SlackReceiver) HandleEvent(receiverEvent ReceiverEvent) error {
+func (sr *SlackReceiver) HandleEvent(receiverEvent ReceiverEvent, c chan error) {
 	chanelURLS := sr.ChannelURLS
 	message := receiverEvent.Message
 	eventName := receiverEvent.EventName
@@ -46,15 +46,19 @@ func (sr *SlackReceiver) HandleEvent(receiverEvent ReceiverEvent) error {
 	log.Info().Msg(fmt.Sprintf("Sending message to Slack: "))
 
 	for _, url := range chanelURLS {
-		err := slack.PostWebhook(url, &msg)
+		defer close(c)
+		innerURL := url
+		go func() {
+			err := slack.PostWebhook(innerURL, &msg)
 
-		if err != nil {
-			log.Error().Msg(fmt.Sprintf("Got error while posting webhook to Slack: %s", err))
-			return err
-		}
+			if err != nil {
+				log.Error().Msg(fmt.Sprintf("Got error while posting webhook to Slack: %s", err))
+				c <- err
+			}
+		}()
 	}
 
-	return nil
+	//return nil
 }
 
 // NewSlackReceiver create new slack receiverz
