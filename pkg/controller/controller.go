@@ -2,10 +2,8 @@ package controller
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/shyimo/kubeobserver/pkg/receivers"
@@ -34,13 +32,13 @@ func homeDir() string {
 func initClientOutOfCluster() *kubernetes.Clientset {
 	var kubeconfig *string
 
-	if home := homeDir(); home != "" {
-		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+	if confFile := os.Getenv("K8S_CONF_FILE"); confFile != "" {
+		kubeconfig = &confFile
 	} else {
-		kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
+		home := homeDir()
+		confFile = home + "/.kube" + "/config"
+		kubeconfig = &confFile
 	}
-
-	flag.Parse()
 
 	// use the current context in kubeconfig
 	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
