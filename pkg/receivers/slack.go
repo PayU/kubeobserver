@@ -57,8 +57,6 @@ func (sr *SlackReceiver) HandleEvent(receiverEvent ReceiverEvent, c chan error) 
 			}
 		}()
 	}
-
-	//return nil
 }
 
 // NewSlackReceiver create new slack receiverz
