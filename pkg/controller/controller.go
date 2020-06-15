@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/shyimo/kubeobserver/pkg/config"
 	"github.com/shyimo/kubeobserver/pkg/receivers"
 
 	"github.com/rs/zerolog/log"
@@ -30,7 +31,7 @@ func homeDir() string {
 }
 
 func initClientOutOfCluster() *kubernetes.Clientset {
-	var kubeconfig *string = KubeConfFilePath()
+	var kubeconfig *string = config.KubeConfFilePath()
 
 	// use the current context in kubeconfig
 	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)

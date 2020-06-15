@@ -24,14 +24,17 @@ func init() {
 	}
 }
 
-// HandleEvent is
+// HandleEvent is an implementation of the Receiver interface for Slack
 func (sr *SlackReceiver) HandleEvent(receiverEvent ReceiverEvent, c chan error) {
 	chanelURLS := sr.ChannelURLS
 	message := receiverEvent.Message
 	eventName := receiverEvent.EventName
 
-	log.Info().Msg(fmt.Sprintf("Received %s message in slack receiver: %s", eventName, message))
-	log.Info().Msg(fmt.Sprintf("Building message in Slack format"))
+	// no matter what happens, close the channel after function exits
+	defer close(c)
+
+	log.Debug().Msg(fmt.Sprintf("Received %s message in slack receiver: %s", eventName, message))
+	log.Debug().Msg(fmt.Sprintf("Building message in Slack format"))
 
 	attachment := slack.Attachment{
 		Color:      "good",
@@ -43,25 +46,14 @@ func (sr *SlackReceiver) HandleEvent(receiverEvent ReceiverEvent, c chan error) 
 		Attachments: []slack.Attachment{attachment},
 	}
 
-	log.Info().Msg(fmt.Sprintf("Sending message to Slack: "))
+	log.Debug().Msg(fmt.Sprintf("Sending message to Slack: %v", msg))
 
 	for _, url := range chanelURLS {
-		defer close(c)
-		innerURL := url
-		go func() {
-			err := slack.PostWebhook(innerURL, &msg)
+		err := slack.PostWebhook(url, &msg)
 
-			if err != nil {
-				log.Error().Msg(fmt.Sprintf("Got error while posting webhook to Slack: %s", err))
-				c <- err
-			}
-		}()
-	}
-}
-
-// NewSlackReceiver create new slack receiverz
-func NewSlackReceiver(channelURLS []string) *SlackReceiver {
-	return &SlackReceiver{
-		ChannelURLS: channelURLS,
+		if err != nil {
+			log.Error().Msg(fmt.Sprintf("Got error while posting webhook to Slack: %s", err))
+			c <- err
+		}
 	}
 }
