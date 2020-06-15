@@ -1,11 +1,14 @@
 package controller
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/shyimo/kubeobserver/pkg/receivers"
 
 	"github.com/rs/zerolog/log"
 	"k8s.io/apimachinery/pkg/util/runtime"
@@ -150,6 +153,45 @@ func (c *controller) Run(threadiness int, stopCh chan struct{}) {
 func (c *controller) runWorker() {
 	for c.processNextItem() {
 	}
+}
+
+// this function should be used by all receivers in order to to send
+// the updated events in parallel
+//  * receiverEvent: is the new event we want to notify the receivers about
+//  * receiversSlice is the slice of strings that contains the desired receiver names
+func sendEventToReceivers(receiverEvent receivers.ReceiverEvent, receiversSlice []string) {
+	var channelList []chan error
+
+	for _, receiverName := range receiversSlice {
+		channel := make(chan error)
+		channelList = append(channelList, channel)
+
+		if receivers.ReceiverMap[receiverName] != nil {
+			go receivers.ReceiverMap[receiverName].HandleEvent(receiverEvent, channel)
+		} else {
+			log.Warn().Msg(fmt.Sprintf("an event was requested to be send to unknown receiver: %s", receiverName))
+		}
+	}
+
+	waitForChannelsToClose(channelList...)
+
+	// act as a default receiver. the event will
+	// be logged only when running with debug log level
+	reStr, _ := json.Marshal(receiverEvent)
+	log.Debug().Msg(string(reStr))
+}
+
+func waitForChannelsToClose(chans ...chan error) {
+	t := time.Now()
+	for _, v := range chans {
+		if err := <-v; err != nil {
+			log.Error().Msg(fmt.Sprintf("an error occuerd during send event to a receiver: %s", err))
+		} else {
+			log.Debug().Msg(fmt.Sprintf("%v for chan to close\n", time.Since(t)))
+		}
+	}
+
+	log.Debug().Msg(fmt.Sprintf("%v for channels to close\n", time.Since(t)))
 }
 
 func init() {

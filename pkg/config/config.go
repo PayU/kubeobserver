@@ -15,6 +15,7 @@ var k8sClusterName string
 var logLevel zerolog.Level
 var excludePodNamePatterns []string
 var slackURLS []string
+var defaultReceiver string
 
 func init() {
 	setLogLevel()
@@ -32,6 +33,10 @@ func init() {
 		excludePodNamePatterns = make([]string, 0)
 	} else {
 		excludePodNamePatterns = strings.Split(os.Getenv("EXCLUDE_POD_NAME_PATTERNS"), ",")
+	}
+
+	if defaultReceiver = os.Getenv("DEFAULT_RECEIVER"); defaultReceiver == "" {
+		defaultReceiver = "slack"
 	}
 
 	outputConfig()
@@ -55,6 +60,11 @@ func ExcludePodNamePatterns() []string {
 // SlackURLS is a getter funcrtion for the slackURLS slice
 func SlackURLS() []string {
 	return slackURLS
+}
+
+// DefaultReceiver is a getter function for DefaultReceiver string
+func DefaultReceiver() string {
+	return defaultReceiver
 }
 
 func verifyMandatoryVariables() {
@@ -90,5 +100,6 @@ func outputConfig() {
 		Str("k8sClusterName", k8sClusterName).
 		Str("logLevel", logLevel.String()).
 		Str("excludePodNamePatterns", strings.Join(excludePodNamePatterns, " ")).
+		Str("defaultReceiver", defaultReceiver).
 		Msg("kubeobserver configurations")
 }

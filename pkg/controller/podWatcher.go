@@ -9,7 +9,6 @@ import (
 	"github.com/shyimo/kubeobserver/pkg/config"
 	"github.com/shyimo/kubeobserver/pkg/receivers"
 	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
@@ -19,9 +18,10 @@ var receiversAnnotationName = "kubeobserver.io/receivers"
 var watchPodInitcontainersAnnotationName = "pod-init-container-kubeobserver.io/watch"
 
 type podEvent struct {
-	EventName   string
-	PodName     string
-	OldPodState *v1.Pod
+	EventName  string
+	PodName    string
+	NewPodData *v1.Pod
+	OldPodData *v1.Pod
 }
 
 func newPodController() *controller {
@@ -33,16 +33,16 @@ func newPodController() *controller {
 
 	// Bind the workqueue to a cache with the help of an informer. This way we make sure that
 	// whenever the cache is updated, the pod key is added to the workqueue.
-	// Note that when we finally process the item from the workqueue, we might see a newer version
-	// of the Pod than the version which was responsible for triggering the update.
 	indexer, informer := cache.NewIndexerInformer(podListWatcher, &v1.Pod{}, 0, cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(obj)
+
 			if err == nil && shouldWatchPod(key) {
 				out, err := json.Marshal(podEvent{
-					EventName:   "Add",
-					PodName:     key,
-					OldPodState: nil,
+					EventName:  "Add",
+					PodName:    key,
+					NewPodData: obj.(*v1.Pod),
+					OldPodData: nil,
 				})
 
 				if err == nil {
@@ -52,11 +52,13 @@ func newPodController() *controller {
 		},
 		UpdateFunc: func(old interface{}, new interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(new)
+
 			if err == nil && shouldWatchPod(key) {
 				out, err := json.Marshal(podEvent{
-					EventName:   "Update",
-					PodName:     key,
-					OldPodState: old.(*v1.Pod),
+					EventName:  "Update",
+					PodName:    key,
+					NewPodData: new.(*v1.Pod),
+					OldPodData: old.(*v1.Pod),
 				})
 
 				if err == nil {
@@ -68,9 +70,10 @@ func newPodController() *controller {
 			key, err := cache.MetaNamespaceKeyFunc(obj)
 			if err == nil && shouldWatchPod(key) {
 				out, err := json.Marshal(podEvent{
-					EventName:   "Delete",
-					PodName:     key,
-					OldPodState: nil,
+					EventName:  "Delete",
+					PodName:    key,
+					NewPodData: nil,
+					OldPodData: nil,
 				})
 
 				if err == nil {
@@ -81,19 +84,112 @@ func newPodController() *controller {
 	}, cache.Indexers{})
 
 	controller := newController(queue, indexer, informer, podEventsHandler, "pod")
-
-	// We can now warm up the cache for initial synchronization.
-	// Let's suppose that we knew about a pod "testPod" on our last run, therefore add it to the cache.
-	// If this pod is not there anymore, the controller will be notified about the removal after the
-	// cache has synchronized.
-	indexer.Add(&v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "testPod",
-			Namespace: v1.NamespaceDefault,
-		},
-	})
-
 	return controller
+}
+
+// podEventsHandler is the business logic of the pod controller.
+// In case an error happened, it has to simply return the error.
+func podEventsHandler(key string, indexer cache.Indexer) error {
+	event := podEvent{}
+	json.Unmarshal([]byte(key), &event)
+
+	podName := event.PodName
+	newPod := event.NewPodData
+	oldPod := event.OldPodData
+
+	var podNamespace string
+	var podAnnotations map[string]string
+	var podControllerKind string
+	var podControllerName string
+	var eventMessage strings.Builder
+	var eventReceivers = make([]string, 0)
+
+	if newPod != nil {
+		podNamespace = newPod.GetNamespace()
+		podAnnotations = newPod.GetObjectMeta().GetAnnotations()
+
+		// fetch the pod owner controller
+		// this value can be any valid controller like StatefulSet, DaemonSet, ReplicaSet, Job and so on..
+		if newPod.GetOwnerReferences() != nil {
+			podControllerKind = newPod.GetOwnerReferences()[0].Kind
+			podControllerName = newPod.GetOwnerReferences()[0].Name
+		}
+	}
+
+	if podAnnotations != nil && podAnnotations[receiversAnnotationName] != "" {
+		eventReceivers = strings.Split(podAnnotations[receiversAnnotationName], ",")
+	}
+
+	eventReceivers = append(eventReceivers, config.DefaultReceiver())
+
+	log.Debug().
+		Msg(fmt.Sprintf("found %d event receivers for pod %s in namespace %s. receivers:%s",
+			len(eventReceivers), podName, podNamespace, strings.Join(eventReceivers, ",")))
+
+	switch event.EventName {
+	case "Add":
+		if (applicationInitTime).Before(newPod.ObjectMeta.CreationTimestamp.Time) {
+			messagePodName := podName
+			if podControllerKind == "StatefulSet" {
+				messagePodName = fmt.Sprintf("%s-%s", podName, newPod.ObjectMeta.UID)
+			}
+
+			eventMessage.WriteString(fmt.Sprintf("A `pod` in namesapce `%s` has been `Created`\n", podNamespace))
+			eventMessage.WriteString(fmt.Sprintf("Pod name:`%s`\n", messagePodName))
+			eventMessage.WriteString(fmt.Sprintf("Environment:`%s`\n", config.ClusterName()))
+			eventMessage.WriteString(fmt.Sprintf("Controller kind:`%s`. Controller name:`%s`\n", podControllerKind, podControllerName))
+		}
+
+	case "Delete":
+		eventMessage.WriteString(fmt.Sprintf("The pod `%s` in `%s` cluster has been deleted\n", podName, config.ClusterName()))
+	default:
+		// update pod evenet
+		watchInitContainers := false
+		podUpdates := make([]string, 0)
+
+		// make sure the check update events the happend on the same pod
+		if newPod.GetObjectMeta().GetCreationTimestamp() != oldPod.GetObjectMeta().GetCreationTimestamp() {
+			return nil
+		}
+
+		if podAnnotations != nil {
+			watchInitContainers = podAnnotations[watchPodInitcontainersAnnotationName] == "true"
+		}
+
+		if watchInitContainers {
+			updates := getStateChangeOfContainers(oldPod.Status.InitContainerStatuses, newPod.Status.InitContainerStatuses)
+			podUpdates = append(podUpdates, updates...)
+		}
+
+		updates := getStateChangeOfContainers(oldPod.Status.ContainerStatuses, newPod.Status.ContainerStatuses)
+		podUpdates = append(podUpdates, updates...)
+
+		if len(podUpdates) > 0 {
+			messagePodName := podName
+			if podControllerKind == "StatefulSet" {
+				messagePodName = fmt.Sprintf("%s-%s", podName, newPod.ObjectMeta.UID)
+			}
+
+			eventMessage.WriteString(fmt.Sprintf("A `pod` in namesapce `%s` has been `Updated`. Pod-Name:`%s`. Environment:`%s`.\n", podNamespace, messagePodName, config.ClusterName()))
+			eventMessage.WriteString(fmt.Sprintf("Controller kind:`%s`. Controller name:`%s`. Updates:\n", podControllerKind, podControllerName))
+			for _, updateStr := range podUpdates {
+				eventMessage.WriteString(fmt.Sprintf("- %s", updateStr))
+			}
+		}
+	}
+
+	// if we have any events to update about,
+	// send the updates to the relevant receivers
+	if eventMessage.String() != "" {
+		receiverEvent := receivers.ReceiverEvent{
+			EventName: event.EventName,
+			Message:   eventMessage.String(),
+		}
+
+		sendEventToReceivers(receiverEvent, eventReceivers)
+	}
+
+	return nil
 }
 
 // getStateChangeOfContainer will check the different between the continers
@@ -123,114 +219,13 @@ func getStateChangeOfContainers(oldContainerStatus []v1.ContainerStatus, newCont
 	}
 
 	for containerName := range newState {
-		if oldState[containerName] != newState[containerName] {
+		if newState[containerName] != "" && oldState[containerName] != newState[containerName] {
+			log.Debug().Msg(fmt.Sprintf("found new state change in %s container. old state:%s. new state:%s.", containerName, oldState[containerName], newState[containerName]))
 			result = append(result, newState[containerName])
 		}
 	}
 
 	return result
-}
-
-// podEventsHandler is the business logic of the pod controller.
-// In case an error happened, it has to simply return the error.
-func podEventsHandler(key string, indexer cache.Indexer) error {
-	event := podEvent{}
-	json.Unmarshal([]byte(key), &event)
-
-	obj, exists, err := indexer.GetByKey(event.PodName)
-	if err != nil {
-		log.Error().Msg(fmt.Sprintf("fetching object with key %s from store failed with %v", event.PodName, err))
-		return err
-	}
-
-	if !exists {
-		log.Info().Msg(fmt.Sprintf("got empty result from controller indexer while trying to fetch %s pod", event.PodName))
-	} else {
-		pod := obj.(*v1.Pod)
-		podName := pod.ObjectMeta.Name
-		podNamespace := pod.GetNamespace()
-		podAnnotations := pod.GetObjectMeta().GetAnnotations()
-		var eventReceivers = make([]string, 0)
-
-		if podAnnotations != nil && podAnnotations[receiversAnnotationName] != "" {
-			eventReceivers = strings.Split(podAnnotations[receiversAnnotationName], ",")
-		}
-
-		log.Debug().
-			Msg(fmt.Sprintf("found %d event receivers for pod %s in namespace %s. receivers:%s",
-				len(eventReceivers), podName, podNamespace, strings.Join(eventReceivers, ",")))
-
-		// unmark this for debug purposes
-		// eventReceivers = append(eventReceivers, "slack")
-
-		var podControllerKind string
-		var podControllerName string
-		var eventMessage strings.Builder
-
-		// fetch the pod owner controller
-		// this value can be any valid controller like StatefulSet, DaemonSet, ReplicaSet, Job and so on..
-		if pod.GetOwnerReferences() != nil {
-			podControllerKind = pod.GetOwnerReferences()[0].Kind
-			podControllerName = pod.GetOwnerReferences()[0].Name
-		}
-
-		switch event.EventName {
-		case "Add":
-			if (applicationInitTime).Before(pod.ObjectMeta.CreationTimestamp.Time) {
-				eventMessage.WriteString(fmt.Sprintf("A `pod` in namesapce `%s` has been `Created`\n", podNamespace))
-				eventMessage.WriteString(fmt.Sprintf("Pod name:`%s`\n", podName))
-				eventMessage.WriteString(fmt.Sprintf("Environment:`%s`\n", config.ClusterName()))
-				eventMessage.WriteString(fmt.Sprintf("Controller kind:`%s`. Controller name:`%s`\n", podControllerKind, podControllerName))
-			}
-		case "Delete":
-			eventMessage.WriteString(fmt.Sprintf("the pod %s in %s cluster has been deleted\n", podName, config.ClusterName()))
-		default:
-			// update pod evenet
-			watchInitContainers := false
-			podUpdates := make([]string, 0)
-
-			if podAnnotations != nil {
-				watchInitContainers = podAnnotations[watchPodInitcontainersAnnotationName] == "true"
-			}
-
-			if watchInitContainers {
-				updates := getStateChangeOfContainers(event.OldPodState.Status.InitContainerStatuses, pod.Status.InitContainerStatuses)
-				podUpdates = append(podUpdates, updates...)
-			}
-
-			updates := getStateChangeOfContainers(event.OldPodState.Status.ContainerStatuses, pod.Status.ContainerStatuses)
-			podUpdates = append(podUpdates, updates...)
-
-			if len(podUpdates) > 0 {
-				eventMessage.WriteString(fmt.Sprintf("A `pod` in namesapce `%s` has been `Updated`. Pod-Name:`%s`. Environment:`%s`.\n", podNamespace, podName, config.ClusterName()))
-				eventMessage.WriteString(fmt.Sprintf("Controller kind:`%s`. Controller name:`%s`. Updates:\n", podControllerKind, podControllerName))
-				for _, updateStr := range podUpdates {
-					eventMessage.WriteString(fmt.Sprintf("- %s", updateStr))
-				}
-			}
-		}
-
-		// if we have any events to update about,
-		// send the updates to the relevant receivers
-		if eventMessage.String() != "" {
-			receiverEvent := receivers.ReceiverEvent{
-				EventName: event.EventName,
-				Message:   eventMessage.String(),
-			}
-
-			for _, receiverName := range eventReceivers {
-				receivers.ReceiverMap[receiverName].HandleEvent(receiverEvent)
-			}
-
-			// act as a default receiver. the event will
-			// be logged only when running with debug log level
-			reStr, _ := json.Marshal(receiverEvent)
-			log.Debug().Msg(string(reStr))
-		}
-
-	}
-
-	return nil
 }
 
 func parseContainerState(cs v1.ContainerState) string {
