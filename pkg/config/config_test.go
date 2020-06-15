@@ -55,3 +55,11 @@ func TestSetLogLevel(t *testing.T) {
 		t.Errorf("Can't get log level")
 	}
 }
+
+func TestKubeConfFilePath(t *testing.T) {
+	var confFile *string = KubeConfFilePath()
+
+	if reflect.TypeOf(confFile).Kind() != reflect.Ptr || &confFile == nil {
+		t.Errorf("Can't get conf file")
+	}
+}
