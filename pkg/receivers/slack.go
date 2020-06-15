@@ -47,7 +47,7 @@ func (sr *SlackReceiver) HandleEvent(receiverEvent ReceiverEvent, c chan error) 
 
 	attachment := slack.Attachment{
 		Color:      colorType,
-		AuthorName: "kubeobserver",
+		AuthorName: "KubeObserver",
 		Text:       "`" + eventName + "`" + " event received: " + message,
 		Ts:         json.Number(strconv.FormatInt(time.Now().Unix(), 10)),
 	}
