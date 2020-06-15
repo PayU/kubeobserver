@@ -30,15 +30,7 @@ func homeDir() string {
 }
 
 func initClientOutOfCluster() *kubernetes.Clientset {
-	var kubeconfig *string
-
-	if confFile := os.Getenv("K8S_CONF_FILE"); confFile != "" {
-		kubeconfig = &confFile
-	} else {
-		home := homeDir()
-		confFile = home + "/.kube" + "/config"
-		kubeconfig = &confFile
-	}
+	var kubeconfig *string = KubeConfFilePath()
 
 	// use the current context in kubeconfig
 	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)

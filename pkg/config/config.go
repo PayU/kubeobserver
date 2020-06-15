@@ -12,6 +12,7 @@ import (
 var mandatoryEnvironmentVariables = []string{"K8S_CLUSTER_NAME"}
 
 var k8sClusterName string
+var kubeConfigFilePath *string
 var logLevel zerolog.Level
 var excludePodNamePatterns []string
 var slackURLS []string
@@ -93,6 +94,27 @@ func setLogLevel() {
 	case "error":
 		logLevel = zerolog.ErrorLevel
 	}
+}
+
+func homeDir() string {
+	if h := os.Getenv("HOME"); h != "" {
+		return h // linux
+	}
+
+	return os.Getenv("USERPROFILE") // windows
+}
+
+// KubeConfFilePath is a getter function for a local k8s conf file path
+func KubeConfFilePath() *string {
+	if confFile := os.Getenv("K8S_CONF_FILE_PATH"); confFile != "" {
+		kubeConfigFilePath = &confFile
+	} else {
+		home := homeDir()
+		confFile = home + "/.kube" + "/config"
+		kubeConfigFilePath = &confFile
+	}
+
+	return kubeConfigFilePath
 }
 
 func outputConfig() {
