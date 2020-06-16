@@ -30,10 +30,10 @@ func TestExcludePodNamePatterns(t *testing.T) {
 	}
 }
 
-func TestSlackURLS(t *testing.T) {
-	slackURLS := SlackURLS()
+func TestSlackChannelNames(t *testing.T) {
+	slackNames := SlackChannelNames()
 
-	if reflect.TypeOf(slackURLS).Kind() != reflect.Slice {
+	if reflect.TypeOf(slackNames).Kind() != reflect.Slice {
 		t.Errorf("Can't get slack URLs")
 	}
 }
@@ -61,5 +61,13 @@ func TestKubeConfFilePath(t *testing.T) {
 
 	if reflect.TypeOf(confFile).Kind() != reflect.Ptr || &confFile == nil {
 		t.Errorf("Can't get conf file")
+	}
+}
+
+func TestSlackToken(t *testing.T) {
+	token := SlackToken()
+
+	if reflect.TypeOf(token).Kind() != reflect.String {
+		t.Errorf("Can't get slack token")
 	}
 }

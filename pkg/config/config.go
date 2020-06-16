@@ -24,12 +24,6 @@ func init() {
 
 	k8sClusterName = os.Getenv("K8S_CLUSTER_NAME")
 
-	if os.Getenv("SLACK_URLS") == "" {
-		slackURLS = make([]string, 0)
-	} else {
-		slackURLS = strings.Split(os.Getenv("SLACK_URLS"), ",")
-	}
-
 	if os.Getenv("EXCLUDE_POD_NAME_PATTERNS") == "" {
 		excludePodNamePatterns = make([]string, 0)
 	} else {
@@ -58,9 +52,17 @@ func ExcludePodNamePatterns() []string {
 	return excludePodNamePatterns
 }
 
-// SlackURLS is a getter funcrtion for the slackURLS slice
-func SlackURLS() []string {
-	return slackURLS
+// SlackChannelNames is a getter funcrtion for the ChannelNames slice
+func SlackChannelNames() []string {
+	var channelNames []string
+
+	if os.Getenv("SLACK_CHANNEL_NAMES") == "" {
+		channelNames = make([]string, 0)
+	} else {
+		channelNames = strings.Split(os.Getenv("SLACK_CHANNEL_NAMES"), ",")
+	}
+
+	return channelNames
 }
 
 // DefaultReceiver is a getter function for DefaultReceiver string
@@ -115,6 +117,19 @@ func KubeConfFilePath() *string {
 	}
 
 	return kubeConfigFilePath
+}
+
+// SlackToken is a getter function to get a slack API token from environment
+func SlackToken() string {
+	var slackToken string
+
+	if token := os.Getenv("SLACK_TOKEN"); token != "" {
+		slackToken = token
+	} else {
+		slackToken = ""
+	}
+
+	return slackToken
 }
 
 func outputConfig() {

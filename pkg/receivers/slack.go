@@ -15,18 +15,19 @@ var slackReceiverName = "slack"
 
 // SlackReceiver is a struct built for receiving and passing onward events messages to Slack
 type SlackReceiver struct {
-	ChannelURLS []string
+	ChannelNames []string
 }
 
 func init() {
 	ReceiverMap[slackReceiverName] = &SlackReceiver{
-		ChannelURLS: config.SlackURLS(),
+		ChannelNames: config.SlackChannelNames(),
 	}
 }
 
 // HandleEvent is an implementation of the Receiver interface for Slack
 func (sr *SlackReceiver) HandleEvent(receiverEvent ReceiverEvent, c chan error) {
-	chanelURLS := sr.ChannelURLS
+	chanelNames := sr.ChannelNames
+	slackToken := config.SlackToken()
 	message := receiverEvent.Message
 	eventName := receiverEvent.EventName
 	authorIcon := "https://raw.githubusercontent.com/kubernetes/community/master/icons/png/resources/unlabeled/pod-128.png"
@@ -47,6 +48,8 @@ func (sr *SlackReceiver) HandleEvent(receiverEvent ReceiverEvent, c chan error) 
 	log.Debug().Msg(fmt.Sprintf("Received %s message in slack receiver: %s", eventName, message))
 	log.Debug().Msg(fmt.Sprintf("Building message in Slack format"))
 
+	slackAPI := slack.New(slackToken)
+
 	attachment := slack.Attachment{
 		Color:      colorType,
 		AuthorName: "KubeObserver",
@@ -56,17 +59,16 @@ func (sr *SlackReceiver) HandleEvent(receiverEvent ReceiverEvent, c chan error) 
 		Footer:     "Slack receiver",
 		FooterIcon: footerIcon,
 	}
-	msg := slack.WebhookMessage{
-		Attachments: []slack.Attachment{attachment},
-	}
 
-	log.Debug().Msg(fmt.Sprintf("Sending message to Slack: %v", msg))
+	log.Debug().Msg(fmt.Sprintf("Sending message to Slack: %v", attachment))
 
-	for _, url := range chanelURLS {
-		err := slack.PostWebhook(url, &msg)
+	for _, channel := range chanelNames {
+		channelID, timestamp, err := slackAPI.PostMessage(channel, slack.MsgOptionAttachments(attachment))
 
-		if err != nil {
-			log.Error().Msg(fmt.Sprintf("Got error while posting webhook to Slack: %s", err))
+		if err == nil {
+			log.Debug().Msg(fmt.Sprintf("Succefully posted a message to channel %s at %s", channelID, timestamp))
+		} else {
+			log.Error().Msg(fmt.Sprintf("An error occured when posting a message to slack: %v", err))
 			c <- err
 		}
 	}
