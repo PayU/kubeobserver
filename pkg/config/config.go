@@ -24,6 +24,7 @@ func init() {
 	verifyMandatoryVariables()
 
 	k8sClusterName = os.Getenv("K8S_CLUSTER_NAME")
+	slackToken = os.Getenv("SLACK_TOKEN")
 
 	if os.Getenv("EXCLUDE_POD_NAME_PATTERNS") == "" {
 		excludePodNamePatterns = make([]string, 0)
@@ -35,12 +36,6 @@ func init() {
 		slackChannelNames = make([]string, 0)
 	} else {
 		slackChannelNames = strings.Split(os.Getenv("SLACK_CHANNEL_NAMES"), ",")
-	}
-
-	if token := os.Getenv("SLACK_TOKEN"); token != "" {
-		slackToken = token
-	} else {
-		slackToken = ""
 	}
 
 	if confFile := os.Getenv("K8S_CONF_FILE_PATH"); confFile != "" {

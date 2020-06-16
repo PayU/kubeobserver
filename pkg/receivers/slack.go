@@ -2,8 +2,10 @@ package receivers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -33,6 +35,13 @@ func (sr *SlackReceiver) HandleEvent(receiverEvent ReceiverEvent, c chan error) 
 	message := receiverEvent.Message
 	eventName := receiverEvent.EventName
 	var colorType string
+
+	// this will be true in case some event has slack recevier
+	// but now channels were provided in the configuration
+	if len(sr.ChannelNames) == 0 {
+		c <- errors.New("HandleEvent of slack was triggered but no slack channel names were found in configuration")
+		return
+	}
 
 	if eventName == "Add" {
 		colorType = "good"
@@ -66,8 +75,10 @@ func (sr *SlackReceiver) HandleEvent(receiverEvent ReceiverEvent, c chan error) 
 		if err == nil {
 			log.Debug().Msg(fmt.Sprintf("Succefully posted a message to channel %s at %s", channelID, timestamp))
 		} else {
-			log.Error().Msg(fmt.Sprintf("An error occured when posting a message to slack: %v", err))
-			c <- err
+			var errStr strings.Builder
+			errStr.WriteString("slack recevier got unexpected error -> ")
+			errStr.WriteString(err.Error())
+			c <- errors.New(errStr.String())
 		}
 	}
 }
