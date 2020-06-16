@@ -12,8 +12,11 @@ import (
 var mandatoryEnvironmentVariables = []string{"K8S_CLUSTER_NAME"}
 
 var k8sClusterName string
+var kubeConfigFilePath *string
 var logLevel zerolog.Level
 var excludePodNamePatterns []string
+var slackChannelNames []string
+var slackToken string
 var defaultReceiver string
 
 func init() {
@@ -26,6 +29,26 @@ func init() {
 		excludePodNamePatterns = make([]string, 0)
 	} else {
 		excludePodNamePatterns = strings.Split(os.Getenv("EXCLUDE_POD_NAME_PATTERNS"), ",")
+	}
+
+	if os.Getenv("SLACK_CHANNEL_NAMES") == "" {
+		slackChannelNames = make([]string, 0)
+	} else {
+		slackChannelNames = strings.Split(os.Getenv("SLACK_CHANNEL_NAMES"), ",")
+	}
+
+	if token := os.Getenv("SLACK_TOKEN"); token != "" {
+		slackToken = token
+	} else {
+		slackToken = ""
+	}
+
+	if confFile := os.Getenv("K8S_CONF_FILE_PATH"); confFile != "" {
+		kubeConfigFilePath = &confFile
+	} else {
+		home := homeDir()
+		confFile = home + "/.kube" + "/config"
+		kubeConfigFilePath = &confFile
 	}
 
 	if defaultReceiver = os.Getenv("DEFAULT_RECEIVER"); defaultReceiver == "" {
@@ -48,6 +71,11 @@ func ClusterName() string {
 // ExcludePodNamePatterns is a getter function for the excludePodNamePatterns slice
 func ExcludePodNamePatterns() []string {
 	return excludePodNamePatterns
+}
+
+// SlackChannelNames is a getter funcrtion for the ChannelNames slice
+func SlackChannelNames() []string {
+	return slackChannelNames
 }
 
 // DefaultReceiver is a getter function for DefaultReceiver string
@@ -81,6 +109,24 @@ func setLogLevel() {
 	case "error":
 		logLevel = zerolog.ErrorLevel
 	}
+}
+
+func homeDir() string {
+	if h := os.Getenv("HOME"); h != "" {
+		return h // linux
+	}
+
+	return os.Getenv("USERPROFILE") // windows
+}
+
+// KubeConfFilePath is a getter function for a local k8s conf file path
+func KubeConfFilePath() *string {
+	return kubeConfigFilePath
+}
+
+// SlackToken is a getter function to get a slack API token from environment
+func SlackToken() string {
+	return slackToken
 }
 
 func outputConfig() {
