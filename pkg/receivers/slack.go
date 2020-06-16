@@ -70,15 +70,36 @@ func (sr *SlackReceiver) HandleEvent(receiverEvent ReceiverEvent, c chan error) 
 	log.Debug().Msg(fmt.Sprintf("Sending message to Slack: %v", attachment))
 
 	for _, channel := range sr.ChannelNames {
-		channelID, timestamp, err := sr.SlackClient.PostMessage(channel, slack.MsgOptionAttachments(attachment))
+		err := postMessage(sr.SlackClient, channel, &attachment)
 
-		if err == nil {
-			log.Debug().Msg(fmt.Sprintf("Succefully posted a message to channel %s at %s", channelID, timestamp))
-		} else {
+		if err != nil {
 			var errStr strings.Builder
 			errStr.WriteString("slack recevier got unexpected error -> ")
 			errStr.WriteString(err.Error())
 			c <- errors.New(errStr.String())
 		}
 	}
+}
+
+func postMessage(slackClient *slack.Client, channel string, attachment *slack.Attachment) error {
+	channelID, timestamp, err := slackClient.PostMessage(channel, slack.MsgOptionAttachments(*attachment))
+
+	if err == nil {
+		log.Debug().Msg(fmt.Sprintf("Succefully posted a message to channel %s at %s", channelID, timestamp))
+	} else {
+		if strings.HasPrefix(err.Error(), "slack rate limit exceeded") {
+			// slack api allows bursts over that limit for short periods. However,
+			// if your app continues to exceed its allowance over longer periods of time, we will begin rate limiting.
+			// Continuing to send messages after exceeding a rate limit runs the risk of your app being permanently disabled.
+			// this this why we are sleeping for  sec in order to make sure we won't get block
+			time.Sleep(1500 * time.Millisecond)
+			channelID, timestamp, err = slackClient.PostMessage(channel, slack.MsgOptionAttachments(*attachment))
+
+			if err == nil {
+				log.Debug().Msg(fmt.Sprintf("Succefully posted a message to channel %s at %s", channelID, timestamp))
+			}
+		}
+	}
+
+	return err
 }
