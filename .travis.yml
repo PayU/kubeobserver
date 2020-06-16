@@ -2,10 +2,14 @@ language: go
 
   secure: "qcWqINcnNivOCVg8C9h0RqftuNNQVB9BvS13MZvvlFMAW3/rnF/leEn8lk4l38OSLa6aq0YH5zKrAIDIWMwHn7RUSZtXaPnjswoTdrNvO8ynmoYAJNZ4/IZ+q2XlVCv5JXAP+cnkV+cyA4MUkvAxxjRX4k+aTqG/GSViIxDsIv91Z65N3HzG6rAkXXcrnajnLB00jKQCUQQBDXHX8QF8dfh7t9iPKZizzB9/W6TPogcsaqYOAYwTY/AAicEkwWIURBJG3h+Qg3AbDs/Vtfds2sHOiJWCokdhyT57wPixsyz3vc6aqxhnjkUvf129hEHhl9ggxJ+PlRztYH78AwtfIzOwnvozfwa/gIqdK1I5j4LUOB8MXoMe2e1Nc01hmkEimM9s7BrMO1cwTIO5KxSFxnTwZv1BkkgnrfZYP+MGXl1DfXexHcyYjHbHQWSMBZosYci479+yM6gAr5nAWN8EIylocskh3AlKvcDsBXCv09arGXJEcA6fxaJO4/6bKcZmvW9jsSi3qErchtD9RZw5FQkROUj/eSJp5Gh7z6/9BnwZ4kBNi9qZu0+6/EfCy1wcQkg1WDzUsZxwNULN8LWx6vJhLPyCZ2CRDTOlpAUpPQsZpn5ILNT2MfpRtTm49Y3cQgsJ2Ww8c0qq0Q0ctzIk+DxtfUjY1iFifrhmN+Cbymc="
 
+env:
+  - K8S_CLUSTER_NAME="eks-dev"
+  - SLACK_CHANNEL_NAMES="kubeobserver-int-test"
+
 go:
 - master
 
 script:
-  - K8S_CLUSTER_NAME="eks-dev" SLACK_CHANNEL_NAMES="kubeobserver-int-test" make run
-  - K8S_CLUSTER_NAME="eks-dev" SLACK_CHANNEL_NAMES="kubeobserver-int-test" make fmt
-  - K8S_CLUSTER_NAME="eks-dev" SLACK_CHANNEL_NAMES="kubeobserver-int-test" make build
+  - make run
+  - make fmt
+  - make build
