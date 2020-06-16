@@ -12,6 +12,8 @@ import (
 )
 
 var slackReceiverName = "slack"
+var slackAuthorIcon string = "https://raw.githubusercontent.com/kubernetes/community/master/icons/png/resources/unlabeled/pod-128.png"
+var slackFooterIcon string = "https://avatars2.githubusercontent.com/u/652790"
 
 // SlackReceiver is a struct built for receiving and passing onward events messages to Slack
 type SlackReceiver struct {
@@ -28,12 +30,8 @@ func init() {
 
 // HandleEvent is an implementation of the Receiver interface for Slack
 func (sr *SlackReceiver) HandleEvent(receiverEvent ReceiverEvent, c chan error) {
-	chanelNames := sr.ChannelNames
-	slackClient := sr.SlackClient
 	message := receiverEvent.Message
 	eventName := receiverEvent.EventName
-	authorIcon := "https://raw.githubusercontent.com/kubernetes/community/master/icons/png/resources/unlabeled/pod-128.png"
-	footerIcon := "https://avatars2.githubusercontent.com/u/652790"
 	var colorType string
 
 	if eventName == "Add" {
@@ -55,15 +53,15 @@ func (sr *SlackReceiver) HandleEvent(receiverEvent ReceiverEvent, c chan error) 
 		AuthorName: "KubeObserver",
 		Text:       "`" + eventName + "`" + " event received: " + message,
 		Ts:         json.Number(strconv.FormatInt(time.Now().Unix(), 10)),
-		AuthorIcon: authorIcon,
+		AuthorIcon: slackAuthorIcon,
 		Footer:     "Slack receiver",
-		FooterIcon: footerIcon,
+		FooterIcon: slackFooterIcon,
 	}
 
 	log.Debug().Msg(fmt.Sprintf("Sending message to Slack: %v", attachment))
 
-	for _, channel := range chanelNames {
-		channelID, timestamp, err := slackClient.PostMessage(channel, slack.MsgOptionAttachments(attachment))
+	for _, channel := range sr.ChannelNames {
+		channelID, timestamp, err := sr.SlackClient.PostMessage(channel, slack.MsgOptionAttachments(attachment))
 
 		if err == nil {
 			log.Debug().Msg(fmt.Sprintf("Succefully posted a message to channel %s at %s", channelID, timestamp))

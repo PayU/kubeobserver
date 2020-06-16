@@ -43,6 +43,14 @@ func init() {
 		slackToken = ""
 	}
 
+	if confFile := os.Getenv("K8S_CONF_FILE_PATH"); confFile != "" {
+		kubeConfigFilePath = &confFile
+	} else {
+		home := homeDir()
+		confFile = home + "/.kube" + "/config"
+		kubeConfigFilePath = &confFile
+	}
+
 	if defaultReceiver = os.Getenv("DEFAULT_RECEIVER"); defaultReceiver == "" {
 		defaultReceiver = "slack"
 	}
@@ -113,14 +121,6 @@ func homeDir() string {
 
 // KubeConfFilePath is a getter function for a local k8s conf file path
 func KubeConfFilePath() *string {
-	if confFile := os.Getenv("K8S_CONF_FILE_PATH"); confFile != "" {
-		kubeConfigFilePath = &confFile
-	} else {
-		home := homeDir()
-		confFile = home + "/.kube" + "/config"
-		kubeConfigFilePath = &confFile
-	}
-
 	return kubeConfigFilePath
 }
 
