@@ -121,8 +121,6 @@ func setLogLevel() {
 	case "error":
 		logLevel = zerolog.ErrorLevel
 	}
-
-	zerolog.SetGlobalLevel(logLevel)
 }
 
 func homeDir() string {

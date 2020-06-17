@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/shyimo/kubeobserver/pkg/config"
 	"github.com/shyimo/kubeobserver/pkg/controller"
@@ -50,10 +51,10 @@ func serve(ctx context.Context) (err error) {
 }
 
 func main() {
+	zerolog.SetGlobalLevel(config.LogLevel())
+
 	// start k8s controller watchers
 	controller.StartWatch(time.Now())
-
-	select {}
 
 	// // create a channel for listening to OS signals
 	// // and connecting OS interrupts to the channel.

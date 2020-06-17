@@ -72,6 +72,7 @@ func newController(queue workqueue.RateLimitingInterface, indexer cache.Indexer,
 
 func (c *controller) processNextItem() bool {
 	log.Debug().Msg(fmt.Sprintf("waiting for new items to appear on the queue in %s controller", c.resourceType))
+	fmt.Println("im here!!!")
 	// Wait until there is a new item in the working queue
 	key, quit := c.queue.Get()
 	if quit {
@@ -126,11 +127,15 @@ func (c *controller) Run(threadiness int, stopCh chan struct{}) {
 
 	go c.informer.Run(stopCh)
 
+	fmt.Println("Before first debug")
+
 	// Wait for all involved caches to be synced, before processing items from the queue is started
 	if !cache.WaitForCacheSync(stopCh, c.informer.HasSynced) {
 		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
 		return
 	}
+
+	fmt.Println("Debug")
 
 	for i := 0; i < threadiness; i++ {
 		go wait.Until(c.runWorker, time.Second, stopCh)
@@ -214,10 +219,10 @@ func StartWatch(initTime time.Time) {
 	applicationInitTime = initTime
 
 	// pod watcher
-	controller := newPodController()
-	podStopCh := make(chan struct{})
-	defer close(podStopCh)
-	go controller.Run(1, podStopCh)
+	podController := newPodController()
+	stopCh := make(chan struct{})
+	defer close(stopCh)
+	go podController.Run(1, stopCh)
 
 	// wait forever
 	select {}
