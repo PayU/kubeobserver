@@ -1,17 +1,17 @@
-package controller
+// package controller
 
-import (
-	"reflect"
-	"testing"
-)
+// import (
+// 	"reflect"
+// 	"testing"
+// )
 
-func TestHomeDir(t *testing.T) {
-	homeDir := homeDir()
+// func TestHomeDir(t *testing.T) {
+// 	homeDir := homeDir()
 
-	if reflect.TypeOf(homeDir).Kind() != reflect.String || homeDir == "" {
-		t.Errorf("Can't get home directory")
-	}
-}
+// 	if reflect.TypeOf(homeDir).Kind() != reflect.String || homeDir == "" {
+// 		t.Errorf("Can't get home directory")
+// 	}
+// }
 
 // func TestInitClientOutOfCluster(t *testing.T) {
 // 	var client *kubernetes.Clientset
