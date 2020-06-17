@@ -56,7 +56,7 @@ func main() {
 	zerolog.SetGlobalLevel(config.LogLevel())
 
 	// start k8s controller watchers
-	controller.StartWatch(time.Now())
+	go controller.StartWatch(time.Now())
 
 	// create a channel for listening to OS signals
 	// and connecting OS interrupts to the channel.
