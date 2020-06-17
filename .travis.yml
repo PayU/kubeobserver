@@ -13,10 +13,12 @@ jobs:
     - go: master
   include:
     - stage: test
+      before_script:
+        - touch /home/travis/.kube/config
       script:
         - go test ./... -v
       env:
         - K8S_CLUSTER_NAME="eks-dev"
-        - SLACK_CHANNEL_NAMES="kubeobserver-integration"
+        - SLACK_CHANNEL_NAMES="G015JRLJ334"
         - GO111MODULE=on
         - LOG_LEVEL="debug"
