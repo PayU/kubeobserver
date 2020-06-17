@@ -53,6 +53,9 @@ func initClientOutOfCluster() *kubernetes.Clientset {
 type controllerLogic func(string, cache.Indexer) error
 
 type controller struct {
+	isReady bool // since we cannot create an empty struct with function.
+	// this value will tell if the variable is initialized (bool zero value is false)
+
 	indexer      cache.Indexer
 	queue        workqueue.RateLimitingInterface
 	informer     cache.Controller
@@ -62,6 +65,7 @@ type controller struct {
 
 func newController(queue workqueue.RateLimitingInterface, indexer cache.Indexer, informer cache.Controller, handler controllerLogic, resourceType string) *controller {
 	return &controller{
+		isReady:      true,
 		informer:     informer,
 		indexer:      indexer,
 		queue:        queue,

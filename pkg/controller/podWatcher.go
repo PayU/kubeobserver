@@ -18,6 +18,8 @@ var ignorePodUpdateAnnotationName = "pod-update-kubeobserver.io/ignore"
 var receiversAnnotationName = "kubeobserver.io/receivers"
 var watchPodInitcontainersAnnotationName = "pod-init-container-kubeobserver.io/watch"
 
+var podController *controller
+
 type podEvent struct {
 	EventName  string
 	PodName    string
@@ -27,7 +29,7 @@ type podEvent struct {
 
 func newPodController() *controller {
 	// create the pod watcher
-	podListWatcher := cache.NewListWatchFromClient(k8sClient.CoreV1().RESTClient(), "pods", "apps", fields.Everything())
+	podListWatcher := cache.NewListWatchFromClient(k8sClient.CoreV1().RESTClient(), "pods", v1.NamespaceAll, fields.Everything())
 
 	// create the workqueue
 	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
@@ -85,8 +87,8 @@ func newPodController() *controller {
 		},
 	}, cache.Indexers{})
 
-	controller := newController(queue, indexer, informer, podEventsHandler, "pod")
-	return controller
+	podController = newController(queue, indexer, informer, podEventsHandler, "pod")
+	return podController
 }
 
 // podEventsHandler is the business logic of the pod controller.
@@ -276,4 +278,9 @@ func shouldWatchPod(podName string) bool {
 	}
 
 	return true
+}
+
+// IsSPodControllerSync is used for server health check
+func IsSPodControllerSync() bool {
+	return podController.informer.HasSynced()
 }

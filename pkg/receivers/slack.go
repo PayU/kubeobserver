@@ -37,7 +37,7 @@ func (sr *SlackReceiver) HandleEvent(receiverEvent ReceiverEvent, c chan error) 
 	var colorType string
 
 	// this will be true in case some event has slack recevier
-	// but now channels were provided in the configuration
+	// but no channels or  were provided in the configuration
 	if len(sr.ChannelNames) == 0 {
 		c <- errors.New("HandleEvent of slack was triggered but no slack channel names were found in configuration")
 		return
@@ -54,8 +54,8 @@ func (sr *SlackReceiver) HandleEvent(receiverEvent ReceiverEvent, c chan error) 
 	// no matter what happens, close the channel after function exits
 	defer close(c)
 
-	log.Debug().Msg(fmt.Sprintf("Received %s message in slack receiver: %s", eventName, message))
-	log.Debug().Msg(fmt.Sprintf("Building message in Slack format"))
+	log.Debug().Msg(fmt.Sprintf("received %s message in slack receiver: %s", eventName, message))
+	log.Debug().Msg(fmt.Sprintf("building message in Slack format"))
 
 	attachment := slack.Attachment{
 		Color:      colorType,
@@ -68,6 +68,13 @@ func (sr *SlackReceiver) HandleEvent(receiverEvent ReceiverEvent, c chan error) 
 	}
 
 	log.Debug().Msg(fmt.Sprintf("Sending message to Slack: %v", attachment))
+
+	user, err := sr.SlackClient.GetUserInfo("shai_moria")
+	if err != nil {
+		fmt.Printf("%s\n", err)
+		return
+	}
+	fmt.Printf("ID: %s, Fullname: %s, Email: %s\n", user.ID, user.Profile.RealName, user.Profile.Email)
 
 	for _, channel := range sr.ChannelNames {
 		err := postMessage(sr.SlackClient, channel, &attachment)
