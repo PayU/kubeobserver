@@ -19,8 +19,8 @@ jobs:
         - echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee -a /etc/apt/sources.list.d/kubernetes.list
         - sudo apt-get update
         - sudo apt-get install -y kubectl
-      before_script:
-        - mkdir /home/travis/.kube && touch /home/travis/.kube/config
+      # before_script:
+      #   - mkdir /home/travis/.kube && touch /home/travis/.kube/config
       script:
         - go test ./... -v
       env:
