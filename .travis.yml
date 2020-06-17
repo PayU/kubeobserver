@@ -14,8 +14,8 @@ jobs:
   include:
     - stage: test
       before_install:
-        - sudo apt get update
-        - sudo apt install -y kubectl
+        - sudo apt-get update
+        - sudo apt-0install -y kubectl
       before_script:
         - mkdir /home/travis/.kube && touch /home/travis/.kube/config
       script:
