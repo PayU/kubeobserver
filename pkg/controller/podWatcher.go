@@ -14,6 +14,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
+var ignorePodUpdateAnnotationName = "pod-update-kubeobserver.io/ignore"
 var receiversAnnotationName = "kubeobserver.io/receivers"
 var watchPodInitcontainersAnnotationName = "pod-init-container-kubeobserver.io/watch"
 
@@ -153,6 +154,13 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 		}
 
 		if podAnnotations != nil {
+			if podAnnotations[ignorePodUpdateAnnotationName] == "true" {
+				log.Debug().
+					Msg(fmt.Sprintf("ignoring pod: %s update event. found %s annotation", podName, ignorePodUpdateAnnotationName))
+
+				return nil
+			}
+
 			watchInitContainers = podAnnotations[watchPodInitcontainersAnnotationName] == "true"
 		}
 

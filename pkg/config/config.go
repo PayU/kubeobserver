@@ -3,13 +3,14 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
-var mandatoryEnvironmentVariables = []string{"K8S_CLUSTER_NAME"}
+var mandatoryEnvironmentVariables = []string{"K8S_CLUSTER_NAME", "PORT"}
 
 var k8sClusterName string
 var kubeConfigFilePath *string
@@ -18,6 +19,7 @@ var excludePodNamePatterns []string
 var slackChannelNames []string
 var slackToken string
 var defaultReceiver string
+var port int
 
 func init() {
 	setLogLevel()
@@ -50,7 +52,22 @@ func init() {
 		defaultReceiver = "slack"
 	}
 
+	if p, err := strconv.Atoi(os.Getenv("PORT")); err == nil {
+		if p < 1 || p > 65535 {
+			panic("PORT env variable must be valid int between 1-65535")
+		}
+
+		port = p
+	} else {
+		panic("PORT env variable must be valid int between 1-65535")
+	}
+
 	outputConfig()
+}
+
+// Port is a getter for port int variable
+func Port() int {
+	return port
 }
 
 // LogLevel is a getter for zerolog log level
@@ -104,6 +121,8 @@ func setLogLevel() {
 	case "error":
 		logLevel = zerolog.ErrorLevel
 	}
+
+	zerolog.SetGlobalLevel(logLevel)
 }
 
 func homeDir() string {
@@ -130,5 +149,6 @@ func outputConfig() {
 		Str("logLevel", logLevel.String()).
 		Str("excludePodNamePatterns", strings.Join(excludePodNamePatterns, " ")).
 		Str("defaultReceiver", defaultReceiver).
+		Int("port", port).
 		Msg("kubeobserver configurations")
 }

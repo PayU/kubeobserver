@@ -212,11 +212,12 @@ func init() {
 func StartWatch(initTime time.Time) {
 	applicationInitTime = initTime
 
+	// pod watcher
 	controller := newPodController()
-	stopCh := make(chan struct{})
-	defer close(stopCh)
-	go controller.Run(1, stopCh)
+	podStopCh := make(chan struct{})
+	defer close(podStopCh)
+	go controller.Run(1, podStopCh)
 
-	// Wait forever
+	// wait forever
 	select {}
 }

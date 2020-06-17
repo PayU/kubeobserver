@@ -91,7 +91,7 @@ func postMessage(slackClient *slack.Client, channel string, attachment *slack.At
 			// slack api allows bursts over that limit for short periods. However,
 			// if your app continues to exceed its allowance over longer periods of time, we will begin rate limiting.
 			// Continuing to send messages after exceeding a rate limit runs the risk of your app being permanently disabled.
-			// this this why we are sleeping for  sec in order to make sure we won't get block
+			// this this why we are sleeping for 1.5 sec in order to make sure we won't get block
 			time.Sleep(1500 * time.Millisecond)
 			channelID, timestamp, err = slackClient.PostMessage(channel, slack.MsgOptionAttachments(*attachment))
 
