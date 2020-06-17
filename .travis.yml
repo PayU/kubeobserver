@@ -6,6 +6,9 @@ go:
 env:
   global:
     - secure: P06J1GwGcCXqp2dYS4iwqoUOUoa8co/DzcNyzeJnwJL6+68md5sXQ8NJNa9+YN5yNO1c5STKuJ8DUOPw03JljUzPHJkK0TcEsNbUGjiyiP/F6sAR7HdmY0UIU7nxm9MZXim8h/qz3F8Yr0E9zL6EGKkZjTcuxiXwEWbwYPQzTwfSeTKmBp3vijm6EWRDj8k734lNY55O50nqbRcrlkUBrDRqyTFbVjyWTT8cMDD9AHAEJB3Z3KnVjqpdAVxRybr7lre181BryNattqwVAtO1/f5upIs9wTbVX/pqPz7CXb6D9krjMQqxX5Tyh/ErgTmxWAQCt9HHtAQdU54AzEBa2PJlZCP+SOwp5dDhC6NXtyUV+zFgbtlS2l5kT2WWmxKjCi4vjxwyQNVA9HMvmLf4zt1dEBj7t/dyAWqs/Le/085TxL517jCzfE7iCysyKdNH95Hrpd2rwKxtHR7odmA0xwcFIyCfhugVR7xYvPrLMViNLkVyAiCkKYKf+jvFzD0U5K1ZPy5T3ttH+H+TO1TOoGSxUNITNFTnLyXpUhZWCymKJ8z/OodMAX+nrBmBYI7mIHpEfz33KEbqbOamSTJ4D+EpKL+TLekApKE8cvmKlNqe9nPLt13W2AFhi2JgTOruOSsDxmF+Dr0LknCnjBnAlY+HmW0KQ45UJZnjp83Ewvw=
+    - K8S_CLUSTER_NAME="eks-dev"
+    - SLACK_CHANNEL_NAMES="G015JRLJ334"
+    - GO111MODULE=on
 
 jobs:
   fast_finish: true
@@ -13,18 +16,11 @@ jobs:
     - go: master
   include:
     - stage: test
-      # before_install:
-      #   - sudo apt-get update && sudo apt-get install -y apt-transport-https gnupg2
-      #   - curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
-      #   - echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee -a /etc/apt/sources.list.d/kubernetes.list
-      #   - sudo apt-get update
-      #   - sudo apt-get install -y kubectl
-      # before_script:
-      #   - kubectl config set current-context "$K8S_CLUSTER_NAME"
       script:
-        - go test ./... -v
-      env:
-        - K8S_CLUSTER_NAME="eks-dev"
-        - SLACK_CHANNEL_NAMES="G015JRLJ334"
-        - GO111MODULE=on
-        - LOG_LEVEL="debug"
+        - make format
+    - stage: format
+      script:
+        - make run
+    - stage: build 
+      script:
+        - make build
