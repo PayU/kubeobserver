@@ -8,7 +8,7 @@ import (
 )
 
 func TestHandleEvent(t *testing.T) {
-	dummyNames := []string{"kubeobserver-int-test"}
+	dummyNames := config.SlackChannelNames()
 	dummySlackReceiver := SlackReceiver{ChannelNames: dummyNames, SlackClient: slack.New(config.SlackToken())}
 	dummyReceiverEvent := ReceiverEvent{Message: "Dummy message", EventName: "Dummy event"}
 	stopCh := make(chan error)

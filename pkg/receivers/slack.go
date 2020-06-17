@@ -58,6 +58,9 @@ func (sr *SlackReceiver) HandleEvent(receiverEvent ReceiverEvent, c chan error) 
 		FooterIcon: slackFooterIcon,
 	}
 
+	conversations := slack.GetConversations()
+	fmt.Println(conversations)
+
 	log.Debug().Msg(fmt.Sprintf("Sending message to Slack: %v", attachment))
 
 	for _, channel := range sr.ChannelNames {
