@@ -13,7 +13,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/workqueue"
@@ -185,28 +184,28 @@ func waitForChannelsToClose(chans ...chan error) {
 	log.Debug().Msg(fmt.Sprintf("%v for channels to close\n", time.Since(t)))
 }
 
-func init() {
-	log.Info().Msg("initializing k8s client")
-	// by default, we are trying to initalize 'in cluster' client,
-	// if error occuer we fallback to 'out of cluster' client
-	config, err := rest.InClusterConfig()
+// func init() {
+// 	log.Info().Msg("initializing k8s client")
+// 	// by default, we are trying to initalize 'in cluster' client,
+// 	// if error occuer we fallback to 'out of cluster' client
+// 	config, err := rest.InClusterConfig()
 
-	if err != nil {
-		// out of cluster
-		k8sClient = initClientOutOfCluster()
-		log.Info().Msg("k8s 'out of cluster' client is initialized")
-	} else {
-		// in cluster
-		clientset, err := kubernetes.NewForConfig(config)
+// 	if err != nil {
+// 		// out of cluster
+// 		k8sClient = initClientOutOfCluster()
+// 		log.Info().Msg("k8s 'out of cluster' client is initialized")
+// 	} else {
+// 		// in cluster
+// 		clientset, err := kubernetes.NewForConfig(config)
 
-		if err != nil {
-			panic(err.Error())
-		}
+// 		if err != nil {
+// 			panic(err.Error())
+// 		}
 
-		k8sClient = clientset
-		log.Info().Msg("k8s 'in cluster' client is initialized")
-	}
-}
+// 		k8sClient = clientset
+// 		log.Info().Msg("k8s 'in cluster' client is initialized")
+// 	}
+// }
 
 // StartWatch function is used to trigger our watchers for k8s resources
 func StartWatch(initTime time.Time) {
