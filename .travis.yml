@@ -14,7 +14,7 @@ jobs:
   include:
     - stage: test
       script:
-        - make run
+        - go test ./... -v
       env:
         - K8S_CLUSTER_NAME="eks-dev"
         - SLACK_CHANNEL_NAMES="kubeobserver-integration"
