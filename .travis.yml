@@ -19,3 +19,4 @@ jobs:
         - K8S_CLUSTER_NAME="eks-dev"
         - SLACK_CHANNEL_NAMES="kubeobserver-integration"
         - GO111MODULE=on
+        - LOG_LEVEL="debug"
