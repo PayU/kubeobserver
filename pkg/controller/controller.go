@@ -121,16 +121,19 @@ func (c *controller) Run(threadiness int, stopCh chan struct{}) {
 	// Let the workers stop when we are done
 	defer c.queue.ShutDown()
 
-	log.Info().
-		Msg(fmt.Sprintf("starting %s controller", c.resourceType))
-
 	go c.informer.Run(stopCh)
+
+	log.Info().
+		Msg(fmt.Sprintf("waiting for %s controller cache to by sync", c.resourceType))
 
 	// Wait for all involved caches to be synced, before processing items from the queue is started
 	if !cache.WaitForCacheSync(stopCh, c.informer.HasSynced) {
 		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
 		return
 	}
+
+	log.Info().
+		Msg(fmt.Sprintf("%s controller is ready and starting", c.resourceType))
 
 	for i := 0; i < threadiness; i++ {
 		go wait.Until(c.runWorker, time.Second, stopCh)
