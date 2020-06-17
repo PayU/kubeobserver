@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
+	"os/signal"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -56,23 +58,23 @@ func main() {
 	// start k8s controller watchers
 	controller.StartWatch(time.Now())
 
-	// // create a channel for listening to OS signals
-	// // and connecting OS interrupts to the channel.
-	// c := make(chan os.Signal, 1)
-	// signal.Notify(c, os.Interrupt)
+	// create a channel for listening to OS signals
+	// and connecting OS interrupts to the channel.
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
 
-	// // create a context with cancel() callback function
-	// ctx, cancel := context.WithCancel(context.Background())
+	// create a context with cancel() callback function
+	ctx, cancel := context.WithCancel(context.Background())
 
-	// // the cancelling of context happens after an OS interrupt.
-	// go func() {
-	// 	oscall := <-c
-	// 	log.Info().Msg(fmt.Sprintf("system call:%s", oscall))
-	// 	cancel()
-	// }()
+	// the cancelling of context happens after an OS interrupt.
+	go func() {
+		oscall := <-c
+		log.Info().Msg(fmt.Sprintf("system call:%s", oscall))
+		cancel()
+	}()
 
-	// // start the http server
-	// if err := serve(ctx); err != nil {
-	// 	log.Error().Msg(fmt.Sprintf("failed to serve:%s\n", err))
-	// }
+	// start the http server
+	if err := serve(ctx); err != nil {
+		log.Error().Msg(fmt.Sprintf("failed to serve:%s\n", err))
+	}
 }
