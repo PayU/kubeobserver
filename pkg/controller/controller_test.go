@@ -1,9 +1,4 @@
-// package controller
-
-// import (
-// 	"reflect"
-// 	"testing"
-// )
+package controller
 
 // func TestHomeDir(t *testing.T) {
 // 	homeDir := homeDir()
