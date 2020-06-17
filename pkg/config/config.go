@@ -150,5 +150,6 @@ func outputConfig() {
 		Str("excludePodNamePatterns", strings.Join(excludePodNamePatterns, " ")).
 		Str("defaultReceiver", defaultReceiver).
 		Int("port", port).
+		Str("slackChannelNames", strings.Join(slackChannelNames, ",")).
 		Msg("kubeobserver configurations")
 }
