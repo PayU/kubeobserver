@@ -20,7 +20,7 @@ jobs:
         - sudo apt-get update
         - sudo apt-get install -y kubectl
       before_script:
-        - kubectl
+        - kubectl config
       script:
         - go test ./... -v
       env:
