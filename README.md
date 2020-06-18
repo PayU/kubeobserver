@@ -1,4 +1,6 @@
-# ![logo](pinterest_profile_image.png)
+# <p align="center">
+  <img width="640" height="300" src="kubeobserver_logo.png">
+</p>
 
 Observe Kubernetes events, collect metrics & trigger endpoint receivers
 
@@ -21,7 +23,7 @@ Kubeobserver is configure throw environment variables.
 | PORT | true | http server port kubeobserver listen on | - |
 
 ### Client settings
-
+ֿ
 When kubeobserver is running inside k8s, client (pods, config-maps and so on) can define what to watch and which receviers they want to use.<br>
 The configuration is made by using k8s controller annotations under the root template, for example:
 
