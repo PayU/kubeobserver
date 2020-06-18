@@ -1,6 +1,4 @@
-# <p align="center">
-  <img width="640" height="300" src="kubeobserver_logo.png">
-</p>
+# ![logo](rsz_3linkedin_banner_image_2.png)
 
 Observe Kubernetes events, collect metrics & trigger endpoint receivers
 
