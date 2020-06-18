@@ -1,4 +1,4 @@
-# ![logo](kubeobserver_logo.png)
+# ![logo](pinterest_profile_image.png)
 
 Observe Kubernetes events, collect metrics & trigger endpoint receivers
 
