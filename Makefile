@@ -1,4 +1,4 @@
-run:
+test:
 	go test ./... -v
 
 build:
