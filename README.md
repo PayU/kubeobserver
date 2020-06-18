@@ -10,8 +10,13 @@ Kubeobserver is configure throw environment variables.
 
 | Variable name | Mandatory | Description | Default |
 | --- | --- | --- | --- |
-| K8S_CLUSTER_NAME | true |  Host to listen on for the prometheus exporter | - |
-| TELEMETRY_PORT | HTTP Port to listen on for the prometheus exporter | 8080 |
+| K8S_CLUSTER_NAME | true | the cluster name kubeobserver deployed to (for example: "dev-clsuster") | - |
+| EXCLUDE_POD_NAME_PATTERNS | false | comma separated string. pod watcher will ignore pods that has one or more of this values inside the pod name (for example, when EXCLUDE_POD_NAME_PATTERNS="runner" pod name "ruuner-353332dsdsa" will be ignored) | empty-string |
+| SLACK_CHANNEL_NAMES | false | slack channels for slack recevier to publish events | empty-string |
+| SLACK_TOKEN | false | slack bot app token for slack recevier | empty-string |
+| K8S_CONF_FILE_PATH | false | when running kubeobserver outside of k8s cluster, this can be used to specify the path for k8s config file | empty-string |
+| DEFAULT_RECEIVER | false | dfgfdgfd | "slack" |
+| PORT | true | http server port kubeobserver listen on | - |
 
 ### Client settings
 
