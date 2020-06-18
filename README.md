@@ -28,7 +28,7 @@ The configuration is made by using k8s controller annotations under the root tem
 ...        
 ```
 
-<b>Note: if annotations are not defined, default values will be used basebased on kubeobserver configuration<b>    
+<b>Note: if annotations are not defined, default values will be used basebased on kubeobserver configuration</b><br>   
 
 | controller-name | k8s-annotation-name | value-type | description | default |
 | :--- | :--- | :--- | :--- | :--- | :--- |
