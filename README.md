@@ -1,4 +1,4 @@
-# ![logo](rsz_3linkedin_banner_image_2.png)
+# ![logo](rsz_5linkedin_banner_image_2.png)
 
 Observe Kubernetes events, collect metrics & trigger endpoint receivers
 
