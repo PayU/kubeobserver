@@ -3,13 +3,14 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
-var mandatoryEnvironmentVariables = []string{"K8S_CLUSTER_NAME"}
+var mandatoryEnvironmentVariables = []string{"K8S_CLUSTER_NAME", "PORT"}
 
 var k8sClusterName string
 var kubeConfigFilePath *string
@@ -18,12 +19,14 @@ var excludePodNamePatterns []string
 var slackChannelNames []string
 var slackToken string
 var defaultReceiver string
+var port int
 
 func init() {
 	setLogLevel()
 	verifyMandatoryVariables()
 
 	k8sClusterName = os.Getenv("K8S_CLUSTER_NAME")
+	slackToken = os.Getenv("SLACK_TOKEN")
 
 	if os.Getenv("EXCLUDE_POD_NAME_PATTERNS") == "" {
 		excludePodNamePatterns = make([]string, 0)
@@ -35,12 +38,6 @@ func init() {
 		slackChannelNames = make([]string, 0)
 	} else {
 		slackChannelNames = strings.Split(os.Getenv("SLACK_CHANNEL_NAMES"), ",")
-	}
-
-	if token := os.Getenv("SLACK_TOKEN"); token != "" {
-		slackToken = token
-	} else {
-		slackToken = ""
 	}
 
 	if confFile := os.Getenv("K8S_CONF_FILE_PATH"); confFile != "" {
@@ -55,7 +52,22 @@ func init() {
 		defaultReceiver = "slack"
 	}
 
+	if p, err := strconv.Atoi(os.Getenv("PORT")); err == nil {
+		if p < 1 || p > 65535 {
+			panic("PORT env variable must be valid int between 1-65535")
+		}
+
+		port = p
+	} else {
+		panic("PORT env variable must be valid int between 1-65535")
+	}
+
 	outputConfig()
+}
+
+// Port is a getter for port int variable
+func Port() int {
+	return port
 }
 
 // LogLevel is a getter for zerolog log level
@@ -135,5 +147,7 @@ func outputConfig() {
 		Str("logLevel", logLevel.String()).
 		Str("excludePodNamePatterns", strings.Join(excludePodNamePatterns, " ")).
 		Str("defaultReceiver", defaultReceiver).
+		Int("port", port).
+		Str("slackChannelNames", strings.Join(slackChannelNames, ",")).
 		Msg("kubeobserver configurations")
 }

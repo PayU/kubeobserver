@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/rs/zerolog/log"
+	"github.com/shyimo/kubeobserver/pkg/common"
 	"github.com/shyimo/kubeobserver/pkg/config"
 	"github.com/shyimo/kubeobserver/pkg/receivers"
 	v1 "k8s.io/api/core/v1"
@@ -14,8 +15,11 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
+var ignorePodUpdateAnnotationName = "pod-update-kubeobserver.io/ignore"
 var receiversAnnotationName = "kubeobserver.io/receivers"
 var watchPodInitcontainersAnnotationName = "pod-init-container-kubeobserver.io/watch"
+
+var podController *controller
 
 type podEvent struct {
 	EventName  string
@@ -26,7 +30,7 @@ type podEvent struct {
 
 func newPodController() *controller {
 	// create the pod watcher
-	podListWatcher := cache.NewListWatchFromClient(k8sClient.CoreV1().RESTClient(), "pods", "logs", fields.Everything())
+	podListWatcher := cache.NewListWatchFromClient(k8sClient.CoreV1().RESTClient(), "pods", v1.NamespaceAll, fields.Everything())
 
 	// create the workqueue
 	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
@@ -83,8 +87,8 @@ func newPodController() *controller {
 		},
 	}, cache.Indexers{})
 
-	controller := newController(queue, indexer, informer, podEventsHandler, "pod")
-	return controller
+	podController = newController(queue, indexer, informer, podEventsHandler, "pod")
+	return podController
 }
 
 // podEventsHandler is the business logic of the pod controller.
@@ -123,8 +127,8 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 	eventReceivers = append(eventReceivers, config.DefaultReceiver())
 
 	log.Debug().
-		Msg(fmt.Sprintf("found %d event receivers for pod %s in namespace %s. receivers:%s",
-			len(eventReceivers), podName, podNamespace, strings.Join(eventReceivers, ",")))
+		Msg(fmt.Sprintf("found %d event receivers for pod %s in namespace %s. receivers:%s. event-type: %s.",
+			len(eventReceivers), podName, podNamespace, strings.Join(eventReceivers, ","), event.EventName))
 
 	switch event.EventName {
 	case "Add":
@@ -153,6 +157,13 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 		}
 
 		if podAnnotations != nil {
+			if podAnnotations[ignorePodUpdateAnnotationName] == "true" {
+				log.Debug().
+					Msg(fmt.Sprintf("ignoring pod: %s update event. found %s annotation", podName, ignorePodUpdateAnnotationName))
+
+				return nil
+			}
+
 			watchInitContainers = podAnnotations[watchPodInitcontainersAnnotationName] == "true"
 		}
 
@@ -181,9 +192,16 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 	// if we have any events to update about,
 	// send the updates to the relevant receivers
 	if eventMessage.String() != "" {
+		additionalInfo := make(map[string]interface{})
+
+		if strings.Contains(eventMessage.String(), common.PodCrashLoopbackStringIdentifier()) {
+			additionalInfo[common.PodCrashLoopbackStringIdentifier()] = true
+		}
+
 		receiverEvent := receivers.ReceiverEvent{
-			EventName: event.EventName,
-			Message:   eventMessage.String(),
+			EventName:      event.EventName,
+			Message:        eventMessage.String(),
+			AdditionalInfo: additionalInfo,
 		}
 
 		sendEventToReceivers(receiverEvent, eventReceivers)
@@ -267,4 +285,9 @@ func shouldWatchPod(podName string) bool {
 	}
 
 	return true
+}
+
+// IsSPodControllerSync is used for server health check
+func IsSPodControllerSync() bool {
+	return podController.informer.HasSynced()
 }
