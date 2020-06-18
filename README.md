@@ -15,7 +15,7 @@ $ ./kubeobserver
 
 ### Kubeobserver configuration
 
-Kubeobserver is configure throw environment variables. 
+Kubeobserver is configure throw environment variables.
 
 | Variable name | Mandatory | Description | Default |
 | --- | --- | --- | --- |
