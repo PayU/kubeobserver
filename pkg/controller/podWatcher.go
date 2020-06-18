@@ -128,8 +128,8 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 	eventReceivers = append(eventReceivers, config.DefaultReceiver())
 
 	log.Debug().
-		Msg(fmt.Sprintf("found %d event receivers for pod %s in namespace %s. receivers:%s",
-			len(eventReceivers), podName, podNamespace, strings.Join(eventReceivers, ",")))
+		Msg(fmt.Sprintf("found %d event receivers for pod %s in namespace %s. receivers:%s. event-type: %s.",
+			len(eventReceivers), podName, podNamespace, strings.Join(eventReceivers, ","), event.EventName))
 
 	switch event.EventName {
 	case "Add":

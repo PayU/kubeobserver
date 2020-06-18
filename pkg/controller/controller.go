@@ -75,7 +75,7 @@ func newController(queue workqueue.RateLimitingInterface, indexer cache.Indexer,
 }
 
 func (c *controller) processNextItem() bool {
-	log.Debug().Msg(fmt.Sprintf("waiting for new items to appear on the queue in %s controller", c.resourceType))
+	log.Debug().Msg(fmt.Sprintf("waiting for new items to appear on the queue of %s controller", c.resourceType))
 	// Wait until there is a new item in the working queue
 	key, quit := c.queue.Get()
 	if quit {
