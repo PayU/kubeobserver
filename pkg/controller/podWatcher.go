@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/rs/zerolog/log"
+	"github.com/shyimo/kubeobserver/pkg/common"
 	"github.com/shyimo/kubeobserver/pkg/config"
 	"github.com/shyimo/kubeobserver/pkg/receivers"
 	v1 "k8s.io/api/core/v1"
@@ -192,9 +193,16 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 	// if we have any events to update about,
 	// send the updates to the relevant receivers
 	if eventMessage.String() != "" {
+		additionalInfo := make(map[string]interface{})
+
+		if strings.Contains(eventMessage.String(), common.PodCrashLoopbackStringIdentifier()) {
+			additionalInfo[common.PodCrashLoopbackStringIdentifier()] = true
+		}
+
 		receiverEvent := receivers.ReceiverEvent{
-			EventName: event.EventName,
-			Message:   eventMessage.String(),
+			EventName:      event.EventName,
+			Message:        eventMessage.String(),
+			AdditionalInfo: additionalInfo,
 		}
 
 		sendEventToReceivers(receiverEvent, eventReceivers)

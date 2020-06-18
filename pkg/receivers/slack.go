@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
+	"github.com/shyimo/kubeobserver/pkg/common"
 	"github.com/shyimo/kubeobserver/pkg/config"
 	"github.com/slack-go/slack"
 )
@@ -16,6 +17,8 @@ import (
 var slackReceiverName = "slack"
 var slackAuthorIcon string = "https://raw.githubusercontent.com/kubernetes/community/master/icons/png/resources/unlabeled/pod-128.png"
 var slackFooterIcon string = "https://avatars2.githubusercontent.com/u/652790"
+var warningIcon string = "https://raw.githubusercontent.com/Keyamoon/IcoMoon-Free/master/PNG/64px/264-warning.png"
+var skullIconsSlackStr string = ":skull_and_crossbones::skull_and_crossbones::skull_and_crossbones::skull_and_crossbones::skull_and_crossbones::skull_and_crossbones:"
 
 // SlackReceiver is a struct built for receiving and passing onward events messages to Slack
 type SlackReceiver struct {
@@ -34,7 +37,10 @@ func init() {
 func (sr *SlackReceiver) HandleEvent(receiverEvent ReceiverEvent, c chan error) {
 	message := receiverEvent.Message
 	eventName := receiverEvent.EventName
+	additionalInfo := receiverEvent.AdditionalInfo
 	var colorType string
+	var thumbURL string
+	var text string
 
 	// this will be true in case some event has slack recevier
 	// but no channels or  were provided in the configuration
@@ -57,24 +63,29 @@ func (sr *SlackReceiver) HandleEvent(receiverEvent ReceiverEvent, c chan error) 
 	log.Debug().Msg(fmt.Sprintf("received %s message in slack receiver: %s", eventName, message))
 	log.Debug().Msg(fmt.Sprintf("building message in Slack format"))
 
+	if additionalInfo[common.PodCrashLoopbackStringIdentifier()] == true { // crash loopback event
+		// this will make sure the red color flag,
+		// add warning thumb on the right side of the meesage
+		// and will add skull icons on the start and the end of the message
+		colorType = "#C70039"
+		thumbURL = warningIcon
+		text = skullIconsSlackStr + message + skullIconsSlackStr
+	} else {
+		text = "`" + eventName + "`" + " event received: " + message
+	}
+
 	attachment := slack.Attachment{
 		Color:      colorType,
 		AuthorName: "KubeObserver",
-		Text:       "`" + eventName + "`" + " event received: " + message,
+		Text:       text,
 		Ts:         json.Number(strconv.FormatInt(time.Now().Unix(), 10)),
 		AuthorIcon: slackAuthorIcon,
 		Footer:     "Slack receiver",
 		FooterIcon: slackFooterIcon,
+		ThumbURL:   thumbURL,
 	}
 
 	log.Debug().Msg(fmt.Sprintf("Sending message to Slack: %v", attachment))
-
-	user, err := sr.SlackClient.GetUserInfo("shai_moria")
-	if err != nil {
-		fmt.Printf("%s\n", err)
-		return
-	}
-	fmt.Printf("ID: %s, Fullname: %s, Email: %s\n", user.ID, user.Profile.RealName, user.Profile.Email)
 
 	for _, channel := range sr.ChannelNames {
 		err := postMessage(sr.SlackClient, channel, &attachment)
