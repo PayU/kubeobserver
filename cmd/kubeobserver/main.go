@@ -30,7 +30,7 @@ func serve(ctx context.Context) (err error) {
 		}
 	}()
 
-	log.Info().Msg(fmt.Sprintf("server is listen on port %d..", config.Port()))
+	log.Info().Msg(fmt.Sprintf("server is listening on port %d..", config.Port()))
 	<-ctx.Done()
 	log.Info().Msg("server stopped")
 

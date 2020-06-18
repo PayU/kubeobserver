@@ -43,7 +43,7 @@ func (sr *SlackReceiver) HandleEvent(receiverEvent ReceiverEvent, c chan error) 
 	var text string
 
 	// this will be true in case some event has slack recevier
-	// but no channels or  were provided in the configuration
+	// but no channels were provided in the configuration
 	if len(sr.ChannelNames) == 0 {
 		c <- errors.New("HandleEvent of slack was triggered but no slack channel names were found in configuration")
 		return
@@ -64,9 +64,9 @@ func (sr *SlackReceiver) HandleEvent(receiverEvent ReceiverEvent, c chan error) 
 	log.Debug().Msg(fmt.Sprintf("building message in Slack format"))
 
 	if additionalInfo[common.PodCrashLoopbackStringIdentifier()] == true { // crash loopback event
-		// this will make sure the red color flag,
-		// add warning thumb on the right side of the meesage
-		// and will add skull icons on the start and the end of the message
+		// this will make sure the red color flag
+		// add warning thumb on the right side of the meesage.
+		// in addition, skull icons will appear on start and the end of the message
 		colorType = "#C70039"
 		thumbURL = warningIcon
 		text = skullIconsSlackStr + message + skullIconsSlackStr
