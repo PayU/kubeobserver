@@ -1,5 +1,5 @@
 test:
-	go test ./... -v -timeout 5s
+	go test ./... -v
 
 build:
 	go build github.com/shyimo/kubeobserver/cmd/kubeobserver
