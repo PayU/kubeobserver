@@ -8,6 +8,7 @@ env:
     - SLACK_TOKEN="test_token"
     - K8S_CLUSTER_NAME="test_cluster"
     - SLACK_CHANNEL_NAMES="my_channel"
+    - PORT="8080"
     - GO111MODULE=on
 
 jobs:
