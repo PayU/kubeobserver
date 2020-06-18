@@ -10,7 +10,6 @@ ADD . "$GOPATH/src/github.com/shyimo/kubeobserver"
 
 RUN make build
 
-
 FROM scratch
 COPY --from=builder /kubeobserver /bin/kubeobserver
 
