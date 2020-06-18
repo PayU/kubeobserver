@@ -4,6 +4,13 @@ Observe Kubernetes events, collect metrics & trigger endpoint receivers
 
 ## Quick Start
 
+#### Build from Scratch
+
+```bash
+$ make build
+$ ./kubeobserver
+```
+
 ## Configuration
 
 ### Kubeobserver configuration
@@ -17,7 +24,7 @@ Kubeobserver is configure throw environment variables.
 | SLACK_CHANNEL_NAMES | false | slack channels for slack recevier to publish events | empty-string |
 | SLACK_TOKEN | false | slack bot app token for slack recevier | empty-string |
 | K8S_CONF_FILE_PATH | false | when running kubeobserver outside of k8s cluster, this can be used to specify the path for k8s config file | empty-string |
-| DEFAULT_RECEIVER | false | dfgfdgfd | "slack" |
+| DEFAULT_RECEIVER | false | name of the default recevier for all controller watchers | "slack" |
 | PORT | true | http server port kubeobserver listen on | - |
 
 ### Client settings
