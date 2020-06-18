@@ -13,6 +13,8 @@ Kubeobserver is configure throw environment variables.
 | K8S_CLUSTER_NAME | true |  Host to listen on for the prometheus exporter | - |
 | TELEMETRY_PORT | HTTP Port to listen on for the prometheus exporter | 8080 |
 
+### Client settings
+
 When kubeobserver is running inside k8s, client (pods, config-maps and so on) can define what to watch and which receviers they want to use.<br>
 The configuration is made by using k8s controller annotations under the root template, for example:
 
@@ -28,7 +30,7 @@ The configuration is made by using k8s controller annotations under the root tem
 ...        
 ```
 
-<b>Note: if annotations are not defined, default values will be used basebased on kubeobserver configuration</b><br>   
+<b>Note: if annotations are not defined, default values will be used basebased on kubeobserver configuration</b><br>
 
 | controller-name | k8s-annotation-name | value-type | description | default |
 | :--- | :--- | :--- | :--- | :--- | :--- |
