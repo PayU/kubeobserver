@@ -1,0 +1,23 @@
+language: go
+
+go:
+  - "1.14"
+
+env:
+  global:
+    - SLACK_TOKEN="test_token"
+    - K8S_CLUSTER_NAME="test_cluster"
+    - SLACK_CHANNEL_NAMES="my_channel"
+    - GO111MODULE=on
+
+jobs:
+  fast_finish: true
+  allow_failures:
+    - go: master
+  include:
+    - stage: test
+      script:
+        - make test
+    - stage: format
+      script:
+        - make format
