@@ -1,3 +1,5 @@
+# ![logo](kubeobserver_logo.png)
+
 Observe Kubernetes events, collect metrics & trigger endpoint receivers
 
 ## Quick Start
