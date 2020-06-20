@@ -13,7 +13,7 @@ $ ./kubeobserver
 
 ## Configuration
 
-### Kubeobserver configuration
+### Kubeobserver Configuration
 
 Kubeobserver is configure throw environment variables.
 
