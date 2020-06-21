@@ -3,6 +3,9 @@ language: go
 go:
   - "1.14"
 
+services:
+  - docker  
+
 env:
   global:
     - SLACK_TOKEN="test_token"
@@ -11,14 +14,33 @@ env:
     - PORT="8080"
     - GO111MODULE=on
 
+stages:
+- unit-tests  
+- deploy
+  # if: branch = master AND type = push AND fork = false  
+
+
 jobs:
   fast_finish: true
   allow_failures:
     - go: master
   include:
-    - stage: test
+    # trigger unit tests    
+    - stage: unit-tests
       script:
         - make test
-    - stage: format
+
+    # deploy docket image to global repository
+    - stage: deploy
+      before_script:
+        - source ci/before_script.sh
       script:
-        - make format
+        - make docker-build-and-push
+      after_success:
+        - git config user.email "travis@travis.org"
+        - git config user.name "travis" # this email and name can be set anything you like
+        - ./ci/version-control.sh major
+        - git add .
+        - git commit -m "Release new version [skip ci]"
+        - git push https://shyimo:${GITHUB_API_KEY}@github.com/PayU/kubeobserver.git HEAD:master
+      
