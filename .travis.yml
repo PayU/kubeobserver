@@ -14,6 +14,11 @@ env:
     - PORT="8080"
     - GO111MODULE=on
 
+before_script:
+# execute all of the commands which need to be executed 
+# before running actual jobs
+- bash ci/before_script.sh
+
 jobs:
   fast_finish: true
   allow_failures:
