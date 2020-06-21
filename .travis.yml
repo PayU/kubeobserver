@@ -17,8 +17,7 @@ env:
 stages:
 - unit-tests  
 - deploy
-  # if: branch = master AND type = push AND fork = false  
-
+  if: branch = master AND type = push AND fork = false  
 
 jobs:
   fast_finish: true
@@ -39,7 +38,7 @@ jobs:
       after_success:
         - git config user.email "travis@travis.org"
         - git config user.name "travis" # this email and name can be set anything you like
-        - ./ci/version-control.sh major
+        - ./ci/version-control.sh ${RELEASE_TYPE}
         - git add .
         - git commit -m "Release new version [skip ci]"
         - git push https://shyimo:${GITHUB_API_KEY}@github.com/PayU/kubeobserver.git HEAD:master
