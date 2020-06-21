@@ -13,42 +13,51 @@ type slackClient interface {
 }
 
 type MockSlackClient struct{}
+type MockSlackReceiver struct{}
 
 func (m *MockSlackClient) postMessage(ch string, opt slack.MsgOption) (string, time.Time, error) {
 	return ch, time.Now(), nil
 }
 
-func (m *MockSlackClient) handleEvent(e ReceiverEvent, c chan error) {
+func (mr *MockSlackReceiver) postMessage(mc *MockSlackClient, channel string, attachement *slack.Attachment) error {
+	_, _, err := mc.postMessage(channel, slack.MsgOptionAttachments(*attachement))
+
+	return err
+}
+
+func (mr *MockSlackReceiver) handleEvent(e ReceiverEvent, c chan error) {
+	client := MockSlackClient{}
 	text := e.EventName + "" + e.Message
 
 	attach := slack.Attachment{
 		Text: text,
 	}
 
-	err, _, _ := m.postMessage("mockChannel", slack.MsgOptionAttachments(attach))
+	err := mr.postMessage(&client, "mockChannel", &attach)
 
-	if err != "mockChannel" {
+	if err != nil {
 		c <- errors.New("problem with mockPostMessage")
 	}
 }
 
 func TestPostMessage(t *testing.T) {
+	reciever := MockSlackReceiver{}
 	client := MockSlackClient{}
-	now := time.Now()
+	attach := slack.Attachment{}
 
-	ch, time, err := client.postMessage("mockChannel", slack.MsgOptionAsUser(true))
+	err := reciever.postMessage(&client, "mockChannel", &attach)
 
-	if ch != "mockChannel" || (time).Before(now) || err != nil {
-		t.Error("Error in posting message")
+	if err != nil {
+		t.Error(err)
 	}
 }
 
 func TestHandleEvent(t *testing.T) {
-	client := MockSlackClient{}
+	reciever := MockSlackReceiver{}
 	event := ReceiverEvent{EventName: "mockEvent", Message: "mockMessage", AdditionalInfo: make(map[string]interface{})}
 	channel := make(chan error)
 
-	client.handleEvent(event, channel)
+	reciever.handleEvent(event, channel)
 
 	select {
 	case err := <-channel:
