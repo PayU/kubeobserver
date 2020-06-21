@@ -14,22 +14,26 @@ env:
     - PORT="8080"
     - GO111MODULE=on
 
-before_script:
-# execute all of the commands which need to be executed 
-# before running actual jobs
-- bash ci/before_script.sh
-
 jobs:
   fast_finish: true
   allow_failures:
     - go: master
   include:
+    # deploy docket image to global repository
     - stage: deploy-docker
+      before_script:
+        - bash ci/before_script.sh
       script:
         - make dockerpush
+
+
+
     - stage: test
       script:
         - make test
+
+
+
     - stage: format
       script:
         - make format
