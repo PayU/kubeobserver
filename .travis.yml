@@ -37,6 +37,8 @@ jobs:
       script:
         - make docker-build-and-push
       after_success:
+        - git config user.email "travis@travis.org"
+        - git config user.name "travis"
         - ./ci/version-control.sh major
         - git add .
         - git commit -m "Release new version [skip ci]"
