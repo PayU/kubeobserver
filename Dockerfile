@@ -6,11 +6,14 @@ RUN apt-get update && \
     apt-get clean && \
     mkdir -p "$GOPATH/src/github.com/shyimo/kubeobserver"
 
-ADD . "$GOPATH/src/github.com/shyimo/kubeobserver"
+COPY . "$GOPATH/src/github.com/shyimo/kubeobserver"
 
-RUN make build
+RUN cd "$GOPATH/src/github.com/shyimo/kubeobserver" && \
+    make build
+
+RUN cp $GOPATH/src/github.com/shyimo/kubeobserver/kubeobserver .
 
 FROM scratch
-COPY --from=builder /kubeobserver /bin/kubeobserver
+COPY --from=builder /kubeobserver /kubeobserver
 
-ENTRYPOINT ["./bin/kubeobserver"]
+ENTRYPOINT ["./kubeobserver"]
