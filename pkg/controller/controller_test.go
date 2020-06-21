@@ -17,6 +17,12 @@ type kuberNetes interface {
 	NewForConfig(Config) (ClientSet, error)
 }
 
+type informer interface {
+	Run(stopCh <-chan struct{})
+	HasSynced() bool
+	LastSyncResourceVersion() string
+}
+
 type Config struct {
 	Master string
 	Path   *string
@@ -28,7 +34,7 @@ type ClientSet struct {
 type mockClientCmd struct{}
 type mockKubernetes struct{}
 type mockController struct{}
-type mockIndexers map[string]IndexFunc
+type mockInformer struct{}
 
 func (mc *mockClientCmd) buildConfigFromFlags(masterURL string, kubeconfigPath *string) (*Config, error) {
 	conf := Config{Master: masterURL, Path: kubeconfigPath}
@@ -46,22 +52,48 @@ func (mcont *mockController) processNextItem() bool {
 	return true
 }
 
-type KeyFunc func(obj interface{}) (string, error)
+func (mi mockInformer) Run(stopCh <-chan struct{}) {
+	return
+}
+
+func (mi mockInformer) HasSynced() bool {
+	return false
+}
+
+func (mi mockInformer) LastSyncResourceVersion() string {
+	return "mockVersion"
+}
 
 func KeyFuncImplement(obj interface{}) (string, error) {
 	return "mockKey", errors.New("error")
 }
 
-type IndexFunc func(obj interface{}) ([]string, error)
-
 func IndexFuncImplement(obj interface{}) ([]string, error) {
 	return []string{"mockString1", "mockString2"}, errors.New("error")
 }
 
-func TestNewController(t *testing.T) {
-	m := make(map[string]IndexFunc)
+func mockNewController() *controller {
 	q := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
-	i := cache.NewIndexer(KeyFuncImplement)
+	ind := cache.NewIndexer(KeyFuncImplement, cache.Indexers{"mockIndexers": IndexFuncImplement})
+	inf := mockInformer{}
+	cl := func(str string, i cache.Indexer) error { return errors.New("error") }
+	p := "pod"
+
+	return newController(q, ind, inf, cl, p)
+}
+
+func TestNewController(t *testing.T) {
+	q := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
+	ind := cache.NewIndexer(KeyFuncImplement, cache.Indexers{"mockIndexers": IndexFuncImplement})
+	inf := mockInformer{}
+	cl := func(str string, i cache.Indexer) error { return errors.New("error") }
+	p := "pod"
+
+	mockController := newController(q, ind, inf, cl, p)
+
+	if mockController == nil {
+		t.Error("error")
+	}
 }
 
 func TestHomeDir(t *testing.T) {
@@ -102,7 +134,16 @@ func TestProcessNextItem(t *testing.T) {
 }
 
 func TestHandleErr(t *testing.T) {
+	c := mockNewController()
+	err := errors.New("mockError")
+	key := "mockKey"
 
+	c.handleErr(err, key)
+	newKey, _ := c.queue.Get()
+
+	if newKey != key {
+		t.Error("error")
+	}
 }
 
 func TestRun(t *testing.T) {
@@ -110,7 +151,8 @@ func TestRun(t *testing.T) {
 }
 
 func TestRunWorker(t *testing.T) {
-
+	c := mockNewController()
+	go c.runWorker()
 }
 
 func TestSendEventToReceivers(t *testing.T) {
