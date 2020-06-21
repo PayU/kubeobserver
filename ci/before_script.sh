@@ -1,1 +1,1 @@
-echo "Hello world this is test!!"
+export DOCKER_IMAGE_NAME=kubeobserver

@@ -14,26 +14,25 @@ env:
     - PORT="8080"
     - GO111MODULE=on
 
+stages:
+- unit-tests  
+- deploy
+  # if: branch = master AND type = push AND fork = false  
+
+
 jobs:
   fast_finish: true
   allow_failures:
     - go: master
   include:
     # deploy docket image to global repository
-    - stage: deploy-docker
+    - stage: deploy
       before_script:
         - bash ci/before_script.sh
       script:
         - make dockerpush
 
-
-
-    - stage: test
+    # trigger unit tests    
+    - stage: unit-tests
       script:
         - make test
-
-
-
-    - stage: format
-      script:
-        - make format
