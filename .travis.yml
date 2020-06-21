@@ -25,14 +25,14 @@ jobs:
   allow_failures:
     - go: master
   include:
-    # deploy docket image to global repository
-    - stage: deploy
-      before_script:
-        - bash ci/before_script.sh
-      script:
-        - make dockerpush
-
     # trigger unit tests    
     - stage: unit-tests
       script:
         - make test
+
+    # deploy docket image to global repository
+    - stage: deploy
+      before_script:
+        - source ci/before_script.sh
+      script:
+        - make dockerpush        
