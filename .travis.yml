@@ -3,6 +3,9 @@ language: go
 go:
   - "1.14"
 
+services:
+  - docker  
+
 env:
   global:
     - SLACK_TOKEN="test_token"
@@ -16,6 +19,9 @@ jobs:
   allow_failures:
     - go: master
   include:
+    - stage: deploy-docker
+      script:
+        - make dockerpush
     - stage: test
       script:
         - make test
