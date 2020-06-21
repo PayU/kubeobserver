@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/PayU/kubeobserver/pkg/common"
+	"github.com/PayU/kubeobserver/pkg/config"
 	"github.com/rs/zerolog/log"
-	"github.com/shyimo/kubeobserver/pkg/common"
-	"github.com/shyimo/kubeobserver/pkg/config"
 	"github.com/slack-go/slack"
 )
 

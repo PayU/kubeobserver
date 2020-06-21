@@ -2,13 +2,25 @@
 
 Observe Kubernetes events, collect metrics & trigger endpoint receivers
 
-## Quick Start
+## Run Locally
+
+```console
+# First, download and install kubewatch using go package installer
+$ go get -u -v github.com/PayU/kubeobserver
+$ cd ~/go/src/github.com/PayU/kubeobserver
+```
 
 #### Build from Scratch
 
 ```bash
 $ make build
 $ ./kubeobserver
+```
+
+#### Run local inside docker
+```bash
+$ docker build .
+$ docker run -v <local_path_to_kube_config>:/home -e PORT=8000 -e K8S_CLUSTER_NAME=cluster-name -e K8S_CONF_FILE_PATH=/home/config -p 8000:8000 <docker_image_id>
 ```
 
 ## Configuration

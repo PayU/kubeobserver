@@ -3,6 +3,9 @@ language: go
 go:
   - "1.14"
 
+services:
+  - docker  
+
 env:
   global:
     - SLACK_TOKEN="test_token"
@@ -16,9 +19,21 @@ jobs:
   allow_failures:
     - go: master
   include:
+    # deploy docket image to global repository
+    - stage: deploy-docker
+      before_script:
+        - bash ci/before_script.sh
+      script:
+        - make dockerpush
+
+
+
     - stage: test
       script:
         - make test
+
+
+
     - stage: format
       script:
         - make format
