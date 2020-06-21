@@ -35,4 +35,4 @@ jobs:
       before_script:
         - source ci/before_script.sh
       script:
-        - make dockerpush        
+        - make docker-build-and-push        
