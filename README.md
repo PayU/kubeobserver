@@ -7,6 +7,7 @@ Observe Kubernetes events, collect metrics & trigger endpoint receivers
 ```console
 # First, download and install kubewatch using go package installer
 $ go get -u -v github.com/PayU/kubeobserver
+$ cd ~/go/src/github.com/PayU/kubeobserver
 ```
 
 #### Build from Scratch
