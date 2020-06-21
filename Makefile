@@ -2,7 +2,7 @@ test:
 	go test ./... -v
 
 build:
-	go build github.com/shyimo/kubeobserver/cmd/kubeobserver
+	go build github.com/PayU/kubeobserver/cmd/kubeobserver
 
 format:
-	go fmt github.com/shyimo/kubeobserver/cmd/kubeobserver
+	go fmt github.com/PayU/kubeobserver/cmd/kubeobserver

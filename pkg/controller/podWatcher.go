@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/PayU/kubeobserver/pkg/common"
+	"github.com/PayU/kubeobserver/pkg/config"
+	"github.com/PayU/kubeobserver/pkg/receivers"
 	"github.com/rs/zerolog/log"
-	"github.com/shyimo/kubeobserver/pkg/common"
-	"github.com/shyimo/kubeobserver/pkg/config"
-	"github.com/shyimo/kubeobserver/pkg/receivers"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/tools/cache"

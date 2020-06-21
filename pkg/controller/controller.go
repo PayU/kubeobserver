@@ -6,8 +6,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/shyimo/kubeobserver/pkg/config"
-	"github.com/shyimo/kubeobserver/pkg/receivers"
+	"github.com/PayU/kubeobserver/pkg/config"
+	"github.com/PayU/kubeobserver/pkg/receivers"
 
 	"github.com/rs/zerolog/log"
 	"k8s.io/apimachinery/pkg/util/runtime"

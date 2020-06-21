@@ -10,14 +10,14 @@ ENV GO111MODULE=on \
 RUN apt-get update && \
     apt-get install -y --no-install-recommends build-essential && \
     apt-get clean && \
-    mkdir -p "$GOPATH/src/github.com/shyimo/kubeobserver"
+    mkdir -p "$GOPATH/src/github.com/PayU/kubeobserver"
 
-COPY . "$GOPATH/src/github.com/shyimo/kubeobserver"
+COPY . "$GOPATH/src/github.com/PayU/kubeobserver"
 
-RUN cd "$GOPATH/src/github.com/shyimo/kubeobserver" && \
+RUN cd "$GOPATH/src/github.com/PayU/kubeobserver" && \
     make build
 
-RUN cp $GOPATH/src/github.com/shyimo/kubeobserver/kubeobserver .
+RUN cp $GOPATH/src/github.com/PayU/kubeobserver/kubeobserver .
 
 FROM debian
 COPY --from=builder go/kubeobserver /kubeobserver

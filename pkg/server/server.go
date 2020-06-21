@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/PayU/kubeobserver/pkg/controller"
 	"github.com/rs/zerolog/log"
-	"github.com/shyimo/kubeobserver/pkg/controller"
 )
 
 type healthResponse struct {
