@@ -16,10 +16,18 @@ COPY . "$GOPATH/src/github.com/shyimo/kubeobserver"
 
 RUN cd "$GOPATH/src/github.com/shyimo/kubeobserver" && \
     make build
-    
+
 RUN cp $GOPATH/src/github.com/shyimo/kubeobserver/kubeobserver .
 
-FROM scratch
+FROM debian
 COPY --from=builder go/kubeobserver /kubeobserver
+
+RUN apt-get update && \
+    apt-get -y install curl
+
+# Install aws-iam-authenticator in order kubectl will be able to work with Amazon EKS
+RUN curl -o aws-iam-authenticator https://amazon-eks.s3.us-west-2.amazonaws.com/1.16.8/2020-04-16/bin/linux/amd64/aws-iam-authenticator && \
+    chmod +x ./aws-iam-authenticator && \
+    cp ./aws-iam-authenticator /usr/local/bin
 
 ENTRYPOINT ["/kubeobserver"]
