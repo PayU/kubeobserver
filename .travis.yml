@@ -16,8 +16,8 @@ env:
 
 stages:
 - unit-tests  
-- deploy
-  if: branch = master AND type = push AND fork = false  
+- name: deploy
+  if: branch = master
 
 jobs:
   fast_finish: true
