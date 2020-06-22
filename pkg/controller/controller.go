@@ -2,8 +2,10 @@ package controller
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/PayU/kubeobserver/pkg/config"
@@ -32,6 +34,16 @@ func homeDir() string {
 
 func initClientOutOfCluster() *kubernetes.Clientset {
 	var kubeconfig *string = config.KubeConfFilePath()
+
+	defer func() {
+		if r := recover(); r != nil {
+			if strings.Contains(r.(string), "stat") {
+				log.Error().Msg("Local config file probably doesn't exist in default path")
+			} else {
+				panic(errors.New(r.(string)))
+			}
+		}
+	}()
 
 	// use the current context in kubeconfig
 	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)

@@ -2,9 +2,11 @@ package controller
 
 import (
 	"errors"
+	"os"
 	"reflect"
 	"testing"
 
+	"github.com/PayU/kubeobserver/pkg/config"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 )
@@ -99,27 +101,11 @@ func TestHomeDir(t *testing.T) {
 }
 
 func TestInitClientOutOfCluster(t *testing.T) {
-	// cmd := mockClientCmd{}
-	// k8s := mockKubernetes{}
-	// path := "mockPath"
-	// conf := Config{Master: "mockMaster", Path: &path}
-
-	// _, errorFromFlags := cmd.buildConfigFromFlags("mockMaster", &path)
-
-	// if errorFromFlags == nil {
-	// 	t.Error("error")
-	// }
-
-	// _, errorFromConfig := k8s.NewForConfig(conf)
-
-	// if errorFromConfig == nil {
-	// 	t.Error("error")
-	// }
-
+	var kubeconfig *string = config.KubeConfFilePath()
 	client := initClientOutOfCluster()
 
-	if client == nil {
-		t.Error("error")
+	if _, err := os.Stat(*kubeconfig); os.IsNotExist(err) && client != nil {
+		t.Error("Though config file doesn't exist, somehow a k8s client was initiated")
 	}
 }
 
