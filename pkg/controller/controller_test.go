@@ -99,20 +99,26 @@ func TestHomeDir(t *testing.T) {
 }
 
 func TestInitClientOutOfCluster(t *testing.T) {
-	cmd := mockClientCmd{}
-	k8s := mockKubernetes{}
-	path := "mockPath"
-	conf := Config{Master: "mockMaster", Path: &path}
+	// cmd := mockClientCmd{}
+	// k8s := mockKubernetes{}
+	// path := "mockPath"
+	// conf := Config{Master: "mockMaster", Path: &path}
 
-	_, errorFromFlags := cmd.buildConfigFromFlags("mockMaster", &path)
+	// _, errorFromFlags := cmd.buildConfigFromFlags("mockMaster", &path)
 
-	if errorFromFlags == nil {
-		t.Error("error")
-	}
+	// if errorFromFlags == nil {
+	// 	t.Error("error")
+	// }
 
-	_, errorFromConfig := k8s.NewForConfig(conf)
+	// _, errorFromConfig := k8s.NewForConfig(conf)
 
-	if errorFromConfig == nil {
+	// if errorFromConfig == nil {
+	// 	t.Error("error")
+	// }
+
+	client := initClientOutOfCluster()
+
+	if client == nil {
 		t.Error("error")
 	}
 }
