@@ -4,11 +4,11 @@ export DOCKER_IMAGE=zooz/kubeobserver:$VERSION
 
 # set release type
 if [[ $TRAVIS_COMMIT_MESSAGE == *"feat"* ]]; then
-  export RELEASE_TYPE = "minor"
+    export RELEASE_TYPE="minor"
 elif [[ $TRAVIS_COMMIT_MESSAGE == *"future"* ]]; then
-    export RELEASE_TYPE = "minor"
-else 
-     export RELEASE_TYPE = "patch"   
+    export RELEASE_TYPE="minor"
+else
+    export RELEASE_TYPE="patch"   
 fi
 
 function reportVars() {
