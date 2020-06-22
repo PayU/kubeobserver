@@ -5,6 +5,7 @@ import (
 	"os"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/PayU/kubeobserver/pkg/config"
 	"k8s.io/client-go/tools/cache"
@@ -159,5 +160,5 @@ func TestWaitForChannelsToClose(t *testing.T) {
 }
 
 func TestStartWatch(t *testing.T) {
-
+	go StartWatch(time.Now())
 }
