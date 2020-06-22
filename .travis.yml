@@ -15,9 +15,7 @@ env:
     - GO111MODULE=on
 
 stages:
-- unit-tests  
-- name: deploy
-  if: branch = master
+- unit-tests
 
 jobs:
   fast_finish: true
@@ -28,12 +26,5 @@ jobs:
     - stage: unit-tests
       script:
         - make test
-
-    # deploy docket image to global repository
-    - stage: deploy&release
-      before_script:
-        - source ci/before_script.sh
-      script:
-        - source ci/release.sh
         
 
