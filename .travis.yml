@@ -22,9 +22,7 @@ jobs:
   allow_failures:
     - go: master
   include:
-    # trigger unit tests    
+    # trigger unit tests
     - stage: unit-tests
       script:
         - make test
-        
-
