@@ -5,7 +5,7 @@ else
     make docker-build-and-push
     git config user.email "travis@travis.org"
     git config user.name "travis" # this email and name can be set anything you like
-    .ci/version-control.sh ${RELEASE_TYPE}
+    ci/version-control.sh ${RELEASE_TYPE}
     git add .
     git commit -m "Release new version [skip ci]"
     git push https://shyimo:${GITHUB_API_KEY}@github.com/PayU/kubeobserver.git HEAD:master    
