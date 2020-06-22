@@ -2,12 +2,14 @@ package controller
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"reflect"
 	"testing"
 	"time"
 
 	"github.com/PayU/kubeobserver/pkg/config"
+	"github.com/PayU/kubeobserver/pkg/receivers"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 )
@@ -38,18 +40,7 @@ type mockClientCmd struct{}
 type mockKubernetes struct{}
 type mockController struct{}
 type mockInformer struct{}
-
-func (mc *mockClientCmd) buildConfigFromFlags(masterURL string, kubeconfigPath *string) (*Config, error) {
-	conf := Config{Master: masterURL, Path: kubeconfigPath}
-
-	return &conf, errors.New("conf error from flags")
-}
-
-func (mk *mockKubernetes) NewForConfig(c Config) (*ClientSet, error) {
-	set := ClientSet{Name: c.Master}
-
-	return &set, errors.New("conf error when trying to create a new conf")
-}
+type mockReceiver struct{}
 
 func (mcont *mockController) processNextItem() bool {
 	return true
@@ -60,11 +51,22 @@ func (mi mockInformer) Run(stopCh <-chan struct{}) {
 }
 
 func (mi mockInformer) HasSynced() bool {
-	return false
+	return true
 }
 
 func (mi mockInformer) LastSyncResourceVersion() string {
 	return "mockVersion"
+}
+
+func (mr mockReceiver) HandleEvent(r receivers.ReceiverEvent, c chan error) {
+	if r.EventName == "Add" {
+		fmt.Println("Add event was sent to receiver")
+		c <- nil
+	} else if r.EventName == "Delete" {
+		c <- errors.New("Delete event caused an error")
+	} else {
+		c <- errors.New("Unexpected error")
+	}
 }
 
 func KeyFuncImplement(obj interface{}) (string, error) {
@@ -143,7 +145,18 @@ func TestHandleErr(t *testing.T) {
 }
 
 func TestRun(t *testing.T) {
+	mockController := mockNewController()
+	threads := 1
+	c := make(chan struct{})
+	key := "mockKey"
 
+	mockController.queue.AddRateLimited(key)
+
+	go mockController.Run(threads, c)
+
+	mockController.queue.Forget(key)
+	mockController.queue.Done(key)
+	close(c)
 }
 
 func TestRunWorker(t *testing.T) {
@@ -152,11 +165,27 @@ func TestRunWorker(t *testing.T) {
 }
 
 func TestSendEventToReceivers(t *testing.T) {
+	addEvent := receivers.ReceiverEvent{EventName: "Add", Message: "mockMessage", AdditionalInfo: make(map[string]interface{})}
+	deleteEvent := receivers.ReceiverEvent{EventName: "Delete", Message: "mockMessage", AdditionalInfo: make(map[string]interface{})}
+	receiversSlice := []string{"mockReceiver"}
+	r := mockReceiver{}
+	receivers.ReceiverMap[receiversSlice[0]] = r
 
+	sendEventToReceivers(addEvent, receiversSlice)
+	sendEventToReceivers(deleteEvent, receiversSlice)
 }
 
 func TestWaitForChannelsToClose(t *testing.T) {
+	var channelList []chan error
+	channel := make(chan error)
+	channelList = append(channelList, channel)
 
+	go waitForChannelsToClose(channelList...)
+
+	for _, c := range channelList {
+		c <- errors.New("mockError")
+		close(c)
+	}
 }
 
 func TestStartWatch(t *testing.T) {
