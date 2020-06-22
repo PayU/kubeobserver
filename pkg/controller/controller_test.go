@@ -83,13 +83,7 @@ func mockNewController() *controller {
 }
 
 func TestNewController(t *testing.T) {
-	q := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
-	ind := cache.NewIndexer(KeyFuncImplement, cache.Indexers{"mockIndexers": IndexFuncImplement})
-	inf := mockInformer{}
-	cl := func(str string, i cache.Indexer) error { return errors.New("error") }
-	p := "pod"
-
-	mockController := newController(q, ind, inf, cl, p)
+	mockController := mockNewController()
 
 	if mockController == nil {
 		t.Error("error")
@@ -138,8 +132,17 @@ func TestHandleErr(t *testing.T) {
 	err := errors.New("mockError")
 	key := "mockKey"
 
-	c.handleErr(err, key)
+	c.queue.AddRateLimited(key)
+	c.handleErr(nil, key)
 	newKey, _ := c.queue.Get()
+
+	if newKey != key {
+		t.Error("error")
+	}
+
+	c.queue.Done(key)
+	c.handleErr(err, key)
+	newKey, _ = c.queue.Get()
 
 	if newKey != key {
 		t.Error("error")
