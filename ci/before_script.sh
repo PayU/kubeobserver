@@ -1,5 +1,5 @@
 echo "***************** Running Travis.ci before script *****************"
-export VERSION=$(cat version)
+export VERSION=$(cat $PWD/version)
 export DOCKER_IMAGE=zooz/kubeobserver:$VERSION
 
 # set release type
