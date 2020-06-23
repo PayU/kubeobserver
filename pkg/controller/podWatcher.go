@@ -203,7 +203,7 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 
 		additionalInfo["pod_watcher_users_ids"] = podWatchSlackUsersID
 
-		// if we found 'ignore-update-event' annotations but the pod is in crash-loop-back
+		// if we found 'ignore-update-event' annotation but the pod is in crash-loop-back
 		// we will still send the event so we can notify about it.
 		// in any other case we will send the event as long as 'ignore-update-event' annotations not set to true
 		if !ignoreEvent || onCrashLoopBack {
