@@ -133,7 +133,7 @@ func (c *controller) Run(threadiness int, stopCh chan struct{}) {
 	// Let the workers stop when we are done
 	defer c.queue.ShutDown()
 
-	c.informer.Run(stopCh)
+	go c.informer.Run(stopCh)
 
 	log.Info().
 		Msg(fmt.Sprintf("waiting for %s controller cache to by sync", c.resourceType))
