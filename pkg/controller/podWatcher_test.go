@@ -3,7 +3,11 @@ package controller
 import "testing"
 
 func TestNewPodController(t *testing.T) {
+	podController := newPodController()
 
+	if podController == nil {
+		t.Error("TestNewPodController: couldn't create a new pod controller")
+	}
 }
 
 func TestPodEventsHandler(t *testing.T) {
