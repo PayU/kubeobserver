@@ -18,6 +18,7 @@ import (
 var ignorePodUpdateAnnotationName = "pod-update-kubeobserver.io/ignore"
 var receiversAnnotationName = "kubeobserver.io/receivers"
 var watchPodInitcontainersAnnotationName = "pod-init-container-kubeobserver.io/watch"
+var slackUserIdsAnnotationName = "pod-watch-kubeobserver.io/slack_users_id"
 
 var podController *controller
 
@@ -107,7 +108,8 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 	var podControllerKind string
 	var podControllerName string
 	var eventMessage strings.Builder
-	var eventReceivers = make([]string, 0)
+	eventReceivers := make([]string, 0)
+	podWatchSlackUsersID := make([]string, 0)
 
 	if newPod != nil {
 		podNamespace = newPod.GetNamespace()
@@ -160,6 +162,10 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 		if podAnnotations != nil {
 			ignoreEvent = podAnnotations[ignorePodUpdateAnnotationName] == "true"
 			watchInitContainers = podAnnotations[watchPodInitcontainersAnnotationName] == "true"
+
+			if podAnnotations[slackUserIdsAnnotationName] != "" {
+				podWatchSlackUsersID = strings.Split(podAnnotations[slackUserIdsAnnotationName], ",")
+			}
 		}
 
 		if watchInitContainers {
@@ -194,6 +200,8 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 			additionalInfo[common.PodCrashLoopbackStringIdentifier()] = true
 			onCrashLoopBack = true
 		}
+
+		additionalInfo["pod_watcher_users_ids"] = podWatchSlackUsersID
 
 		// if we found 'ignore-update-event' annotations but the pod is in crash-loop-back
 		// we will still send the event so we can notify about it.

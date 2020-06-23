@@ -63,3 +63,31 @@ The configuration is made by using k8s controller annotations under the root tem
 | --- | --- | --- | --- | --- |
 | pod-watcher | pod-init-container-kubeobserver.io/watch | boolean | pod watcher will trigger events for init containers related to the pod | false |
 | *All* | kubeobserver.io/receivers | comma separated string | a comma separated string of recevier names that the events will be publish to. unknown names will be ignored | default recevier is defined in kubeobserver using DEFAULT_RECEIVER env variable |
+| pod-watcher | pod-update-kubeobserver.io/ignore | boolean | pod watcher will ignore update events. only 'Add'/'Delete' will notify | false |
+| pod-watcher | pod-watch-kubeobserver.io/slack_users_id | comma separated string | comma separated string of slack users id's. this users will mentioned on a slack message when crashLoopBack event has occuerd | "" |
+
+## Receivers
+
+- <b>Slack</b>
+
+    In order to take advantage of all the possibilities of the slack receiver, make sure your slack token has the following permissions:<br>
+    
+    ```console
+    chat:write
+    Send messages as @kubeobserver
+
+    chat:write.customize
+    Send messages as @kubeobserver with a customized username and avatar
+
+    groups:write
+    Manage private channels that kubeobserver has been added to and create new ones
+
+    incoming-webhook
+    Post messages to specific channels in Slack
+
+    users.profile:read
+    View profile details about people in the workspace
+
+    users:read
+    View people in the workspace
+    ```
