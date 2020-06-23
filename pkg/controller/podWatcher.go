@@ -101,6 +101,7 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 	newPod := event.NewPodData
 	oldPod := event.OldPodData
 
+	var ignoreEvent bool = false
 	var podNamespace string
 	var podAnnotations map[string]string
 	var podControllerKind string
@@ -157,13 +158,7 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 		}
 
 		if podAnnotations != nil {
-			if podAnnotations[ignorePodUpdateAnnotationName] == "true" {
-				log.Debug().
-					Msg(fmt.Sprintf("ignoring pod: %s update event. found %s annotation", podName, ignorePodUpdateAnnotationName))
-
-				return nil
-			}
-
+			ignoreEvent = podAnnotations[ignorePodUpdateAnnotationName] == "true"
 			watchInitContainers = podAnnotations[watchPodInitcontainersAnnotationName] == "true"
 		}
 
@@ -193,18 +188,28 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 	// send the updates to the relevant receivers
 	if eventMessage.String() != "" {
 		additionalInfo := make(map[string]interface{})
+		onCrashLoopBack := false
+
+		fmt.Println("Im here maaannn")
 
 		if strings.Contains(eventMessage.String(), common.PodCrashLoopbackStringIdentifier()) {
 			additionalInfo[common.PodCrashLoopbackStringIdentifier()] = true
+			onCrashLoopBack = true
 		}
 
-		receiverEvent := receivers.ReceiverEvent{
-			EventName:      event.EventName,
-			Message:        eventMessage.String(),
-			AdditionalInfo: additionalInfo,
+		// if we found 'ignore-update-event' annotations but the pod is in crash-loop-back
+		// we will still send the event so we can notify about it.
+		// in any other case we will send the event as long as 'ignore-update-event' annotations not set to true
+		if !ignoreEvent || onCrashLoopBack {
+			receiverEvent := receivers.ReceiverEvent{
+				EventName:      event.EventName,
+				Message:        eventMessage.String(),
+				AdditionalInfo: additionalInfo,
+			}
+
+			sendEventToReceivers(receiverEvent, eventReceivers)
 		}
 
-		sendEventToReceivers(receiverEvent, eventReceivers)
 	}
 
 	return nil
