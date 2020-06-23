@@ -190,8 +190,6 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 		additionalInfo := make(map[string]interface{})
 		onCrashLoopBack := false
 
-		fmt.Println("Im here maaannn")
-
 		if strings.Contains(eventMessage.String(), common.PodCrashLoopbackStringIdentifier()) {
 			additionalInfo[common.PodCrashLoopbackStringIdentifier()] = true
 			onCrashLoopBack = true

@@ -8,11 +8,11 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/PayU/kubeobserver/pkg/config"
+	"github.com/PayU/kubeobserver/pkg/controller"
+	"github.com/PayU/kubeobserver/pkg/server"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/shyimo/kubeobserver/pkg/config"
-	"github.com/shyimo/kubeobserver/pkg/controller"
-	"github.com/shyimo/kubeobserver/pkg/server"
 )
 
 func serve(ctx context.Context) (err error) {
