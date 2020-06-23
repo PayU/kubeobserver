@@ -14,37 +14,14 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
-type clientCmd interface {
-	buildConfigFromFlags(string, string) (*Config, error)
-}
-
-type kuberNetes interface {
-	NewForConfig(Config) (ClientSet, error)
-}
-
 type informer interface {
 	Run(stopCh <-chan struct{})
 	HasSynced() bool
 	LastSyncResourceVersion() string
 }
 
-type Config struct {
-	Master string
-	Path   *string
-}
-type ClientSet struct {
-	Name string
-}
-
-type mockClientCmd struct{}
-type mockKubernetes struct{}
-type mockController struct{}
 type mockInformer struct{}
 type mockReceiver struct{}
-
-func (mcont *mockController) processNextItem() bool {
-	return true
-}
 
 func (mi mockInformer) Run(stopCh <-chan struct{}) {
 	return
@@ -55,33 +32,33 @@ func (mi mockInformer) HasSynced() bool {
 }
 
 func (mi mockInformer) LastSyncResourceVersion() string {
-	return "mockVersion"
+	return "mockInformerVersion"
 }
 
 func (mr mockReceiver) HandleEvent(r receivers.ReceiverEvent, c chan error) {
 	if r.EventName == "Add" {
-		fmt.Println("Add event was sent to receiver")
+		fmt.Println("Add event was sent to mockReceiver")
 		c <- nil
 	} else if r.EventName == "Delete" {
-		c <- errors.New("Delete event caused an error")
+		c <- errors.New("Delete event caused an error in mockReceiver")
 	} else {
-		c <- errors.New("Unexpected error")
+		c <- errors.New("Unexpected error in mockReceiver")
 	}
 }
 
 func KeyFuncImplement(obj interface{}) (string, error) {
-	return "mockKey", errors.New("error")
+	return "mockKey", errors.New("mockError")
 }
 
 func IndexFuncImplement(obj interface{}) ([]string, error) {
-	return []string{"mockString1", "mockString2"}, errors.New("error")
+	return []string{"mockString1", "mockString2"}, errors.New("mockEerror")
 }
 
 func mockNewController() *controller {
 	q := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
 	ind := cache.NewIndexer(KeyFuncImplement, cache.Indexers{"mockIndexers": IndexFuncImplement})
 	inf := mockInformer{}
-	cl := func(str string, i cache.Indexer) error { return errors.New("error") }
+	cl := func(str string, i cache.Indexer) error { return errors.New("mockErrorInControllerLogic") }
 	p := "pod"
 
 	return newController(q, ind, inf, cl, p)
@@ -91,7 +68,7 @@ func TestNewController(t *testing.T) {
 	mockController := mockNewController()
 
 	if mockController == nil {
-		t.Error("error")
+		t.Error("TestNewController: error in initializing a new controller")
 	}
 }
 
@@ -99,7 +76,7 @@ func TestHomeDir(t *testing.T) {
 	result := homeDir()
 
 	if reflect.TypeOf(result).Kind() != reflect.String || result == "" {
-		t.Error("TestHomeDir has failed, didn't receive a directory path")
+		t.Error("TestHomeDir: test has failed, didn't receive a directory path")
 	}
 }
 
@@ -108,31 +85,34 @@ func TestInitClientOutOfCluster(t *testing.T) {
 	client := initClientOutOfCluster()
 
 	if _, err := os.Stat(*kubeconfig); os.IsNotExist(err) && client != nil {
-		t.Error("Though config file doesn't exist, somehow a k8s client was initiated")
+		t.Error("TestInitClientOutOfCluster: Though config file doesn't exist, somehow a k8s client was initiated")
 	}
 }
 
 func TestProcessNextItem(t *testing.T) {
-	controller := mockController{}
+	controller := mockNewController()
+	key := "mockKeyFromProcessNextItem"
+	var processed bool
 
-	processed := controller.processNextItem()
+	controller.queue.AddRateLimited(key)
+	processed = controller.processNextItem()
 
 	if !processed {
-		t.Error("error")
+		t.Error("TestProcessNextItem: test has failed")
 	}
 }
 
 func TestHandleErr(t *testing.T) {
 	c := mockNewController()
 	err := errors.New("mockError")
-	key := "mockKey"
+	key := "mockKeyFromHandleErr"
 
 	c.queue.AddRateLimited(key)
 	c.handleErr(nil, key)
 	newKey, _ := c.queue.Get()
 
 	if newKey != key {
-		t.Error("error")
+		t.Error("TestHandleErr: key wasn't properly managed in controller")
 	}
 
 	c.queue.Done(key)
@@ -140,7 +120,7 @@ func TestHandleErr(t *testing.T) {
 	newKey, _ = c.queue.Get()
 
 	if newKey != key {
-		t.Error("error")
+		t.Error("TestHandleErr: error wasn't properly managed in controller")
 	}
 }
 
@@ -148,7 +128,7 @@ func TestRun(t *testing.T) {
 	mockController := mockNewController()
 	threads := 1
 	c := make(chan struct{})
-	key := "mockKey"
+	key := "mockKeyFromRun"
 
 	mockController.queue.AddRateLimited(key)
 
@@ -156,12 +136,28 @@ func TestRun(t *testing.T) {
 
 	mockController.queue.Forget(key)
 	mockController.queue.Done(key)
-	close(c)
+
+	defer func() {
+		close(c)
+		_, ok := <-c
+
+		if ok {
+			t.Error("TestRun: channel wasn't closed properly")
+		} else if r := recover(); r != nil {
+			t.Errorf("TestRun: unexpectedly failed with error: %s \n", r)
+		}
+	}()
 }
 
 func TestRunWorker(t *testing.T) {
 	c := mockNewController()
 	go c.runWorker()
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("TestRunWorker: unexpectedly failed with error: %s \n", r)
+		}
+	}()
 }
 
 func TestSendEventToReceivers(t *testing.T) {
@@ -173,6 +169,12 @@ func TestSendEventToReceivers(t *testing.T) {
 
 	sendEventToReceivers(addEvent, receiversSlice)
 	sendEventToReceivers(deleteEvent, receiversSlice)
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("TestSendEventToReceivers: unexpectedly failed with error: %s \n", r)
+		}
+	}()
 }
 
 func TestWaitForChannelsToClose(t *testing.T) {
@@ -183,11 +185,22 @@ func TestWaitForChannelsToClose(t *testing.T) {
 	go waitForChannelsToClose(channelList...)
 
 	for _, c := range channelList {
-		c <- errors.New("mockError")
+		c <- errors.New("mockErrorFromWaitForChannelsToClose")
 		close(c)
+		_, ok := <-c
+
+		if ok {
+			t.Error("TestWaitForChannelsToClose: channel wasn't closed properly")
+		}
 	}
 }
 
 func TestStartWatch(t *testing.T) {
 	go StartWatch(time.Now())
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("StartWatch: unexpectedly failed with error: %s \n", r)
+		}
+	}()
 }
