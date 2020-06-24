@@ -63,8 +63,8 @@ The configuration is made by using k8s controller annotations under the root tem
 | --- | --- | --- | --- | --- |
 | pod-watcher | pod-init-container-kubeobserver.io/watch | boolean | pod watcher will trigger events for init containers related to the pod | false |
 | *All* | kubeobserver.io/receivers | comma separated string | a comma separated string of recevier names that the events will be publish to. unknown names will be ignored | default recevier is defined in kubeobserver using DEFAULT_RECEIVER env variable |
-| pod-watcher | pod-update-kubeobserver.io/ignore | boolean | pod watcher will ignore update events. only 'Add'/'Delete' will notify | false |
-| pod-watcher | pod-watch-kubeobserver.io/slack_users_id | comma separated string | comma separated string of slack users id's. this users will mentioned on a slack message when crashLoopBack event has occuerd | "" |
+| pod-watcher | pod-update-kubeobserver.io/ignore | boolean | pod watcher will ignore 'Update' events and notify only on 'Add'/'Delete' events | false |
+| pod-watcher | pod-watch-kubeobserver.io/slack_users_id | comma separated string | comma separated string of slack users IDs. These users will be mentioned on Kubeobserver's slack message if and when crashLoopBack events will occur | "" |
 
 ## Receivers
 
