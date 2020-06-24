@@ -67,9 +67,21 @@ func (sr *SlackReceiver) HandleEvent(receiverEvent ReceiverEvent, c chan error) 
 		// this will make sure the red color flag
 		// add warning thumb on the right side of the meesage.
 		// in addition, skull icons will appear on start and the end of the message
+		var msgBuilder strings.Builder
+
+		msgBuilder.WriteString(skullIconsSlackStr)
+		msgBuilder.WriteString(message)
+		msgBuilder.WriteString(skullIconsSlackStr)
+
+		usersIDS := additionalInfo["pod_watcher_users_ids"].([]string)
+
+		for _, userID := range usersIDS {
+			msgBuilder.WriteString(fmt.Sprintf("<@%s>", userID))
+		}
+
 		colorType = "#C70039"
 		thumbURL = warningIcon
-		text = skullIconsSlackStr + message + skullIconsSlackStr
+		text = msgBuilder.String()
 	} else {
 		text = "`" + eventName + "`" + " event received: " + message
 	}
