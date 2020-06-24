@@ -21,7 +21,11 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
-var k8sClient *kubernetes.Clientset
+type k8sClientStruct struct {
+	Clientset kubernetes.Interface
+}
+
+var k8sClient k8sClientStruct
 var applicationInitTime time.Time
 
 func homeDir() string {
@@ -209,7 +213,7 @@ func init() {
 
 	if err != nil {
 		// out of cluster
-		k8sClient = initClientOutOfCluster()
+		k8sClient.Clientset = initClientOutOfCluster()
 		log.Info().Msg("k8s 'out of cluster' client is initialized")
 	} else {
 		// in cluster
@@ -219,7 +223,7 @@ func init() {
 			panic(err.Error())
 		}
 
-		k8sClient = clientset
+		k8sClient.Clientset = clientset
 		log.Info().Msg("k8s 'in cluster' client is initialized")
 	}
 }

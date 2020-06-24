@@ -7,10 +7,12 @@ import (
 	"testing"
 
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
 )
 
 func TestNewPodController(t *testing.T) {
+	k8sClient.Clientset = fake.NewSimpleClientset()
 	podController := newPodController()
 
 	if podController == nil {
