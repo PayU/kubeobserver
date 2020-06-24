@@ -29,6 +29,7 @@ type podEvent struct {
 }
 
 func newPodController() *controller {
+
 	// create the pod watcher
 	podListWatcher := cache.NewListWatchFromClient(k8sClient.Clientset.CoreV1().RESTClient(), "pods", v1.NamespaceAll, fields.Everything())
 
