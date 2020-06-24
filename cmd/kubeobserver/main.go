@@ -20,7 +20,6 @@ func serve(ctx context.Context) (err error) {
 	mux := http.NewServeMux()
 	mux.Handle("/health", http.HandlerFunc(server.HealthHandler))
 	mux.Handle("/metrics", promhttp.Handler())
-	//http.ListenAndServe(":2112", nil)
 
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", config.Port()),
