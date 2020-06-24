@@ -1,5 +1,5 @@
 test:
-	go test ./... -v
+	go test ./... -coverprofile c.out -v
 
 build:
 	go build github.com/PayU/kubeobserver/cmd/kubeobserver
