@@ -26,4 +26,4 @@ jobs:
     - stage: unit-tests
       script:
         - make test
-        - go tool cover -func=c.out --exit-code $TRAVIS_TEST_RESULT
+

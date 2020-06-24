@@ -1,5 +1,6 @@
 test:
 	go test ./... -coverprofile c.out -v
+	go tool cover -func=c.out
 
 build:
 	go build github.com/PayU/kubeobserver/cmd/kubeobserver
