@@ -11,6 +11,7 @@ import (
 	"github.com/PayU/kubeobserver/pkg/config"
 	"github.com/PayU/kubeobserver/pkg/controller"
 	"github.com/PayU/kubeobserver/pkg/server"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -18,6 +19,7 @@ import (
 func serve(ctx context.Context) (err error) {
 	mux := http.NewServeMux()
 	mux.Handle("/health", http.HandlerFunc(server.HealthHandler))
+	mux.Handle("/metrics", promhttp.Handler())
 
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", config.Port()),
