@@ -193,14 +193,3 @@ func TestWaitForChannelsToClose(t *testing.T) {
 		}
 	}
 }
-
-// func TestStartWatch(t *testing.T) {
-// 	K8sClient.Clientset = fake.NewSimpleClientset()
-// 	StartWatch(time.Now())
-
-// 	defer func() {
-// 		if r := recover(); r != nil {
-// 			t.Errorf("StartWatch: unexpectedly failed with error: %s \n", r)
-// 		}
-// 	}()
-// }
