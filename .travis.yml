@@ -26,3 +26,4 @@ jobs:
     - stage: unit-tests
       script:
         - make test
+

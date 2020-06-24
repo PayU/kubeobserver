@@ -2,8 +2,10 @@ package controller
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/PayU/kubeobserver/pkg/config"
@@ -19,7 +21,11 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
-var k8sClient *kubernetes.Clientset
+type k8sClientStruct struct {
+	Clientset kubernetes.Interface
+}
+
+var k8sClient k8sClientStruct
 var applicationInitTime time.Time
 
 func homeDir() string {
@@ -32,6 +38,16 @@ func homeDir() string {
 
 func initClientOutOfCluster() *kubernetes.Clientset {
 	var kubeconfig *string = config.KubeConfFilePath()
+
+	defer func() {
+		if r := recover(); r != nil {
+			if strings.Contains(r.(string), "stat") {
+				log.Error().Msg("Local config file probably doesn't exist in default path")
+			} else {
+				panic(errors.New(r.(string)))
+			}
+		}
+	}()
 
 	// use the current context in kubeconfig
 	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
@@ -197,7 +213,7 @@ func init() {
 
 	if err != nil {
 		// out of cluster
-		k8sClient = initClientOutOfCluster()
+		k8sClient.Clientset = initClientOutOfCluster()
 		log.Info().Msg("k8s 'out of cluster' client is initialized")
 	} else {
 		// in cluster
@@ -207,7 +223,7 @@ func init() {
 			panic(err.Error())
 		}
 
-		k8sClient = clientset
+		k8sClient.Clientset = clientset
 		log.Info().Msg("k8s 'in cluster' client is initialized")
 	}
 }
