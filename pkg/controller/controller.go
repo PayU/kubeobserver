@@ -232,14 +232,14 @@ func init() {
 func StartWatch(initTime time.Time) {
 	applicationInitTime = initTime
 
-	// podController := newPodController() // pod watcher
+	podController := newPodController() // pod watcher
 	hpaController := newHPAController() // Horizontal Pod Autoscaler watcher
 
 	stopCh := make(chan struct{})
 	defer close(stopCh)
 
 	// run controllers
-	// go podController.Run(1, stopCh)
+	go podController.Run(1, stopCh)
 	go hpaController.Run(1, stopCh)
 
 	// wait forever

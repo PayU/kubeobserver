@@ -49,11 +49,11 @@ func (sr *SlackReceiver) HandleEvent(receiverEvent ReceiverEvent, c chan error) 
 		return
 	}
 
-	if eventName == "Add" {
+	if eventName == AddEvent {
 		colorType = "good"
-	} else if eventName == "Update" {
+	} else if eventName == UpdateEvent {
 		colorType = "warning"
-	} else if eventName == "Delete" {
+	} else if eventName == DeleteEvent {
 		colorType = "danger"
 	}
 
@@ -83,7 +83,7 @@ func (sr *SlackReceiver) HandleEvent(receiverEvent ReceiverEvent, c chan error) 
 		thumbURL = warningIcon
 		text = msgBuilder.String()
 	} else {
-		text = "`" + eventName + "`" + " event received: " + message
+		text = "`" + string(eventName) + "`" + " event received: " + message
 	}
 
 	attachment := slack.Attachment{

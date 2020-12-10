@@ -16,14 +16,13 @@ import (
 )
 
 var ignorePodUpdateAnnotationName = "pod-update-kubeobserver.io/ignore"
-var receiversAnnotationName = "kubeobserver.io/receivers"
 var watchPodInitcontainersAnnotationName = "pod-init-container-kubeobserver.io/watch"
 var slackUserIdsAnnotationName = "pod-watch-kubeobserver.io/slack_users_id"
 
 var podController *controller
 
 type podEvent struct {
-	EventName  string
+	EventName  receivers.EventName
 	PodName    string
 	NewPodData *v1.Pod
 	OldPodData *v1.Pod
@@ -45,7 +44,7 @@ func newPodController() *controller {
 
 			if err == nil && shouldWatchPod(key) {
 				out, err := json.Marshal(podEvent{
-					EventName:  "Add",
+					EventName:  receivers.AddEvent,
 					PodName:    key,
 					NewPodData: obj.(*v1.Pod),
 					OldPodData: nil,
@@ -61,7 +60,7 @@ func newPodController() *controller {
 
 			if err == nil && shouldWatchPod(key) {
 				out, err := json.Marshal(podEvent{
-					EventName:  "Update",
+					EventName:  receivers.UpdateEvent,
 					PodName:    key,
 					NewPodData: new.(*v1.Pod),
 					OldPodData: old.(*v1.Pod),
@@ -76,7 +75,7 @@ func newPodController() *controller {
 			key, err := cache.MetaNamespaceKeyFunc(obj)
 			if err == nil && shouldWatchPod(key) {
 				out, err := json.Marshal(podEvent{
-					EventName:  "Delete",
+					EventName:  receivers.DeleteEvent,
 					PodName:    key,
 					NewPodData: nil,
 					OldPodData: nil,
@@ -109,7 +108,6 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 	var podControllerKind string
 	var podControllerName string
 	var eventMessage strings.Builder
-	eventReceivers := make([]string, 0)
 	podWatchSlackUsersID := make([]string, 0)
 
 	if newPod != nil {
@@ -124,11 +122,7 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 		}
 	}
 
-	if podAnnotations != nil && podAnnotations[receiversAnnotationName] != "" {
-		eventReceivers = strings.Split(podAnnotations[receiversAnnotationName], ",")
-	}
-
-	eventReceivers = append(eventReceivers, config.DefaultReceiver())
+	eventReceivers := common.BuildEventReceiversList(podAnnotations)
 
 	log.Debug().
 		Msg(fmt.Sprintf("found %d event receivers for pod %s in namespace %s. receivers:%s. event-type: %s.",
