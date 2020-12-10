@@ -17,7 +17,7 @@ import (
 
 var ignorePodUpdateAnnotationName = "pod-update-kubeobserver.io/ignore"
 var watchPodInitcontainersAnnotationName = "pod-init-container-kubeobserver.io/watch"
-var slackUserIdsAnnotationName = "pod-watch-kubeobserver.io/slack_users_id"
+var podSlackUserIdsAnnotationName = "pod-watch-kubeobserver.io/slack_users_id"
 
 var podController *controller
 
@@ -158,8 +158,8 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 			ignoreEvent = podAnnotations[ignorePodUpdateAnnotationName] == "true"
 			watchInitContainers = podAnnotations[watchPodInitcontainersAnnotationName] == "true"
 
-			if podAnnotations[slackUserIdsAnnotationName] != "" {
-				podWatchSlackUsersID = strings.Split(podAnnotations[slackUserIdsAnnotationName], ",")
+			if podAnnotations[podSlackUserIdsAnnotationName] != "" {
+				podWatchSlackUsersID = strings.Split(podAnnotations[podSlackUserIdsAnnotationName], ",")
 			}
 		}
 

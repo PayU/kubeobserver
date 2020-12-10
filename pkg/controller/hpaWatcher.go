@@ -16,6 +16,8 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
+const hpaSlackUserIdsAnnotationName = "hpa-watch-kubeobserver.io/slack_users_id"
+
 var hpaController *controller
 
 type hpaEvent struct {
@@ -69,8 +71,19 @@ func newHPAController() *controller {
 		},
 		DeleteFunc: func(obj interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(obj)
-			fmt.Println(key)
-			fmt.Println(err)
+
+			if err == nil {
+				out, err := json.Marshal(hpaEvent{
+					EventName:  receivers.DeleteEvent,
+					HpaName:    key,
+					NewHpaData: nil,
+					OldHpaData: obj.(*asv1.HorizontalPodAutoscaler),
+				})
+
+				if err == nil {
+					queue.Add(string(out))
+				}
+			}
 		},
 	}, cache.Indexers{})
 
@@ -86,6 +99,7 @@ func hpaEventsHandler(key string, indexer cache.Indexer) error {
 
 	var eventMessage string
 	var hpaAnnotations map[string]string
+	hpaWatchSlackUsersID := make([]string, 0)
 
 	if event.NewHpaData != nil {
 		hpaAnnotations = event.NewHpaData.GetObjectMeta().GetAnnotations()
@@ -97,14 +111,14 @@ func hpaEventsHandler(key string, indexer cache.Indexer) error {
 	switch event.EventName {
 	case "Add":
 		log.Debug().Msg(fmt.Sprintf("handling 'Add' event for HorizontalPodAutoscaler[%s]", event.HpaName))
-
-		if event.NewHpaData != nil {
-			eventMessage = fmt.Sprintf("New HorizontalPodAutoscaler resource [`%s`] added to `%s` cluster", event.HpaName, config.ClusterName())
-			log.Debug().Msg(eventMessage)
-		}
+		eventMessage = fmt.Sprintf("New HorizontalPodAutoscaler resource [`%s`] added to `%s` cluster", event.HpaName, config.ClusterName())
+		log.Debug().Msg(eventMessage)
 
 	case "Delete":
 		log.Debug().Msg(fmt.Sprintf("handling 'Delete' event for HorizontalPodAutoscaler[%s]", event.HpaName))
+		eventMessage = fmt.Sprintf("HorizontalPodAutoscaler resource [`%s`] has deleted from `%s` cluster", event.HpaName, config.ClusterName())
+		log.Debug().Msg(eventMessage)
+
 	default:
 		// update hpa event
 		log.Debug().Msg(fmt.Sprintf("handling 'Update' event for HorizontalPodAutoscaler[%s]", event.HpaName))
@@ -163,13 +177,20 @@ func hpaEventsHandler(key string, indexer cache.Indexer) error {
 				log.Debug().Msg(eventMessage)
 			}
 		}
+
+		if hpaAnnotations != nil && hpaAnnotations[hpaSlackUserIdsAnnotationName] != "" {
+			hpaWatchSlackUsersID = strings.Split(hpaAnnotations[hpaSlackUserIdsAnnotationName], ",")
+		}
 	}
 
 	if eventMessage != "" {
+		additionalInfo := make(map[string]interface{})
+		additionalInfo["pod_watcher_users_ids"] = hpaWatchSlackUsersID
+
 		receiverEvent := receivers.ReceiverEvent{
 			EventName:      event.EventName,
 			Message:        eventMessage,
-			AdditionalInfo: nil,
+			AdditionalInfo: additionalInfo,
 		}
 
 		sendEventToReceivers(receiverEvent, eventReceivers)
