@@ -151,7 +151,7 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 	case "Delete":
 		eventMessage.WriteString(fmt.Sprintf("The pod `%s` in `%s` cluster has been deleted\n", podName, config.ClusterName()))
 	default:
-		// update pod evenet
+		// update pod event
 		watchInitContainers := false
 		podUpdates := make([]string, 0)
 
