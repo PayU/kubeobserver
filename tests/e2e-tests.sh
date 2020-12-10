@@ -22,5 +22,7 @@ echo "Main process will now sleep for 7 seconds..."
 sleep 7
 
 echo "******************* RUNNING TESTS *********************"
+kubectl apply -f $PWD/tests/manifests/hpa-v1.yaml
 
+sleep 10
 echo "************* TESTS FINISHED SUCCESSFULLY *************"
