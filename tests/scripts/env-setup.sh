@@ -12,6 +12,7 @@ E2E_SETUP_KIND=${E2E_SETUP_KIND:-}
 E2E_SETUP_KUBECTL=${E2E_SETUP_KUBECTL:-}
 KIND_VERSION=v0.9.0
 CLUSTER_NAME=kind-kubeobserver-test
+TEST_APP_DOCKER_NAME=test-web-app
 SUDO=${SUDO:-}
 
 OS=$(uname -s | awk '{print tolower($0)}')
@@ -42,7 +43,6 @@ function setup_kubectl() {
 
 echo "************** KIND VERSION **************"
 kind version
-echo "******************************************"
 
 [[ -n "${E2E_SETUP_KUBECTL}" ]] && setup_kubectl
 
@@ -82,7 +82,10 @@ fi
 
 echo "************** KUBECTL VERSION **************"
 kubectl version
-echo "*********************************************"
 
+echo "************** BUILDING TEST WEB-SERVER **************"
+cd $PWD/tests/test-web-server
+docker build -t $TEST_APP_DOCKER_NAME .
+kind load docker-image $TEST_APP_DOCKER_NAME --name $CLUSTER_NAME
 
 

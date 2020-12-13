@@ -22,7 +22,10 @@ func BuildEventReceiversList(annotations map[string]string) []string {
 		eventReceivers = strings.Split(annotations[receiversAnnotationName], ",")
 	}
 
-	eventReceivers = append(eventReceivers, config.DefaultReceiver())
+	if len(eventReceivers) == 0 {
+		// set the default recevier in case no receiver has mentioned in resource annotation
+		eventReceivers = append(eventReceivers, config.DefaultReceiver())
+	}
 
 	// remove duplicates if exists
 
