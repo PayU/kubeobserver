@@ -65,6 +65,7 @@ The configuration is made by using k8s controller annotations under the root tem
 | *All* | kubeobserver.io/receivers | comma separated string | a comma separated string of recevier names that the events will be publish to. unknown names will be ignored | default recevier is defined in kubeobserver using DEFAULT_RECEIVER env variable |
 | pod-watcher | pod-update-kubeobserver.io/ignore | boolean | pod watcher will ignore 'Update' events and notify only on 'Add'/'Delete' events | false |
 | pod-watcher | pod-watch-kubeobserver.io/slack_users_id | comma separated string | comma separated string of slack users IDs. These users will be mentioned on Kubeobserver's slack message if and when crashLoopBack events will occur | "" |
+| hpa-watcher | hpa-watch-kubeobserver.io/slack_users_id | comma separated string | comma separated string of slack users IDs. These users will be mentioned on Kubeobserver's slack message if and when Horizontal Pod Autoscaler events will occur | "" |
 
 ## Receivers
 
