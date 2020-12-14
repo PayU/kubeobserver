@@ -130,6 +130,9 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 
 	switch event.EventName {
 	case "Add":
+		log.Debug().Msg(fmt.Sprintf("applicationInitTime: %v. pod creation time: %v",
+			applicationInitTime, newPod.ObjectMeta.CreationTimestamp.Time))
+
 		if (applicationInitTime).Before(newPod.ObjectMeta.CreationTimestamp.Time) {
 			messagePodName := podName
 			if podControllerKind == "StatefulSet" {

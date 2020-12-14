@@ -20,8 +20,29 @@ spec:
       labels:
         app: hello-world
     spec:
+      restartPolicy: Always
       containers:
       - image: test-web-app:latest
         imagePullPolicy: IfNotPresent
         name: hello-world
         resources:
+          requests:
+            cpu: 0.1
+            memory: 128Mi
+        ports:
+        - containerPort: 8888
+          protocol: TCP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hello-world
+  namespace: default
+spec:
+  ports:
+  - port: 8888
+    protocol: TCP
+    targetPort: 8888
+  selector:
+    app: hello-world        
