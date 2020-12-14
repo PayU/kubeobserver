@@ -27,7 +27,7 @@ func (mr *MockSlackReceiver) postMessage(mc *MockSlackClient, channel string, at
 
 func (mr *MockSlackReceiver) handleEvent(e ReceiverEvent, c chan error) {
 	client := MockSlackClient{}
-	text := e.EventName + "" + e.Message
+	text := string(e.EventName) + "" + e.Message
 
 	attach := slack.Attachment{
 		Text: text,
