@@ -80,17 +80,17 @@ else
     echo "SKIP_KIND_CLUSTER_CREATE is set. skipping kind cluster creation";
 fi
 
-echo "************** KUBECTL VERSION **************"
+# echo "************** KUBECTL VERSION **************"
 kubectl version
 
-echo "************** BUILDING TEST WEB-SERVER **************"
-cd $PWD/tests/test-web-server
-docker build -t $TEST_APP_DOCKER_NAME .
+# echo "************** BUILDING TEST WEB-SERVER **************"
+docker build -t $TEST_APP_DOCKER_NAME -f $PWD/tests/test-web-server/Dockerfile .
 kind load docker-image $TEST_APP_DOCKER_NAME --name $CLUSTER_NAME
 
 echo "************** ADDING METRIC SERVER **************"
 kubectl apply -f $PWD/tests/scripts/metrics-server.yaml
 kubectl patch deployment metrics-server -n kube-system -p '{"spec":{"template":{"spec":{"containers":[{"name":"metrics-server","args":["--cert-dir=/tmp", "--secure-port=4443", "--kubelet-insecure-tls","--kubelet-preferred-address-types=InternalIP"]}]}}}}'
 echo "sleeping for 20 seconds to make sure metric server is working"
-
+sleep 20
+echo "************** ENV SETUP FINISHED **************"
 

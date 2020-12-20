@@ -9,7 +9,7 @@ import (
 	"github.com/PayU/kubeobserver/pkg/config"
 	"github.com/PayU/kubeobserver/pkg/receivers"
 	"github.com/rs/zerolog/log"
-	asv1 "k8s.io/api/autoscaling/v1"
+	"k8s.io/api/autoscaling/v2beta1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/tools/cache"
@@ -23,20 +23,20 @@ var hpaController *controller
 type hpaEvent struct {
 	EventName  receivers.EventName
 	HpaName    string
-	NewHpaData *asv1.HorizontalPodAutoscaler
-	OldHpaData *asv1.HorizontalPodAutoscaler
+	NewHpaData *v2beta1.HorizontalPodAutoscaler
+	OldHpaData *v2beta1.HorizontalPodAutoscaler
 }
 
 func newHPAController() *controller {
 	// create the hpa watcher
-	hpaListWatcher := cache.NewListWatchFromClient(k8sClient.Clientset.AutoscalingV1().RESTClient(), "HorizontalPodAutoscalers", v1.NamespaceAll, fields.Everything())
+	hpaListWatcher := cache.NewListWatchFromClient(k8sClient.Clientset.AutoscalingV2beta1().RESTClient(), "HorizontalPodAutoscalers", v1.NamespaceAll, fields.Everything())
 
 	// create the workqueue
 	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
 
 	// Bind the workqueue to a cache with the help of an informer. This way we make sure that
 	// whenever the cache is updated, the hpa key is added to the workqueue.
-	indexer, informer := cache.NewIndexerInformer(hpaListWatcher, &asv1.HorizontalPodAutoscaler{}, 0, cache.ResourceEventHandlerFuncs{
+	indexer, informer := cache.NewIndexerInformer(hpaListWatcher, &v2beta1.HorizontalPodAutoscaler{}, 0, cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(obj)
 
@@ -44,7 +44,7 @@ func newHPAController() *controller {
 				out, err := json.Marshal(hpaEvent{
 					EventName:  receivers.AddEvent,
 					HpaName:    key,
-					NewHpaData: obj.(*asv1.HorizontalPodAutoscaler),
+					NewHpaData: obj.(*v2beta1.HorizontalPodAutoscaler),
 					OldHpaData: nil,
 				})
 
@@ -56,15 +56,18 @@ func newHPAController() *controller {
 		UpdateFunc: func(old interface{}, new interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(new)
 
+			log.Info().Msg("in HPA update event")
+
 			if err == nil {
 				out, err := json.Marshal(hpaEvent{
 					EventName:  receivers.UpdateEvent,
 					HpaName:    key,
-					NewHpaData: new.(*asv1.HorizontalPodAutoscaler),
-					OldHpaData: old.(*asv1.HorizontalPodAutoscaler),
+					NewHpaData: new.(*v2beta1.HorizontalPodAutoscaler),
+					OldHpaData: old.(*v2beta1.HorizontalPodAutoscaler),
 				})
 
 				if err == nil {
+					log.Info().Msg("second error is nil")
 					queue.Add(string(out))
 				}
 			}
@@ -77,7 +80,7 @@ func newHPAController() *controller {
 					EventName:  receivers.DeleteEvent,
 					HpaName:    key,
 					NewHpaData: nil,
-					OldHpaData: obj.(*asv1.HorizontalPodAutoscaler),
+					OldHpaData: obj.(*v2beta1.HorizontalPodAutoscaler),
 				})
 
 				if err == nil {
@@ -94,6 +97,7 @@ func newHPAController() *controller {
 // hpaEventsHandler is the business logic of the hpa controller.
 // In case an error happened, it has to simply return the error.
 func hpaEventsHandler(key string, indexer cache.Indexer) error {
+	log.Info().Msg("Starting hpaEventsHandler")
 	event := hpaEvent{}
 	json.Unmarshal([]byte(key), &event)
 
@@ -123,7 +127,7 @@ func hpaEventsHandler(key string, indexer cache.Indexer) error {
 		// update hpa event
 		log.Debug().Msg(fmt.Sprintf("handling 'Update' event for HorizontalPodAutoscaler[%s]", event.HpaName))
 
-		var oldHPAStatus, newHPAStatus asv1.HorizontalPodAutoscalerStatus
+		var oldHPAStatus, newHPAStatus v2beta1.HorizontalPodAutoscalerStatus
 
 		if event.OldHpaData != nil && event.NewHpaData != nil {
 			oldHPAStatus = event.OldHpaData.Status
@@ -132,6 +136,10 @@ func hpaEventsHandler(key string, indexer cache.Indexer) error {
 			log.Warn().Msg(fmt.Sprintf("HorizontalPodAutoscaler [%s] old and/or new status is nil. unable to handle 'Update' event", event.EventName))
 			return nil
 		}
+
+		fmt.Printf("%v", oldHPAStatus)
+		fmt.Println("------------------")
+		fmt.Printf("%v", newHPAStatus)
 
 		// new HPA event detected
 		if oldHPAStatus.CurrentReplicas == oldHPAStatus.CurrentReplicas {

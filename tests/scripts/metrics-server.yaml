@@ -115,7 +115,7 @@ spec:
   selector:
     k8s-app: metrics-server
   ports:
-  - port: 443
+  - port: 4443
     protocol: TCP
     targetPort: main-port
 ---

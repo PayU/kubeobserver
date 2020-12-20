@@ -7,7 +7,9 @@ ENV GO111MODULE=on \
     GOARCH=amd64
 
 # Copy everything from the current directory to the PWD (Present Working Directory) inside the container
-COPY . .
+COPY ./tests/test-web-server/ .
+
+RUN apt-get update && apt-get install stress
 
 RUN go build main.go
 
