@@ -19,11 +19,13 @@ var excludePodNamePatterns []string
 var slackChannelNames []string
 var slackToken string
 var defaultReceiver string
+var watcherThreads int
 var port int
 
 func init() {
 	setLogLevel()
 	verifyMandatoryVariables()
+	var err error
 
 	k8sClusterName = os.Getenv("K8S_CLUSTER_NAME")
 	slackToken = os.Getenv("SLACK_TOKEN")
@@ -50,6 +52,14 @@ func init() {
 
 	if defaultReceiver = os.Getenv("DEFAULT_RECEIVER"); defaultReceiver == "" {
 		defaultReceiver = "slack"
+	}
+
+	if threads := os.Getenv("WATCHER_THREADS"); threads != "" {
+		if watcherThreads, err = strconv.Atoi(threads); err != nil {
+			panic(fmt.Sprintf("error on parsing WATCHER_THREADS:[%v]", err))
+		}
+	} else {
+		watcherThreads = 10
 	}
 
 	if p, err := strconv.Atoi(os.Getenv("PORT")); err == nil {
@@ -141,6 +151,11 @@ func SlackToken() string {
 	return slackToken
 }
 
+// WatcherThreads is a getter function for the number of threads each watch controller will use
+func WatcherThreads() int {
+	return watcherThreads
+}
+
 func outputConfig() {
 	log.Info().
 		Str("k8sClusterName", k8sClusterName).
@@ -149,5 +164,6 @@ func outputConfig() {
 		Str("defaultReceiver", defaultReceiver).
 		Int("port", port).
 		Str("slackChannelNames", strings.Join(slackChannelNames, ",")).
+		Int("watcherThreads", watcherThreads).
 		Msg("kubeobserver configurations")
 }

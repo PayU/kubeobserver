@@ -239,8 +239,8 @@ func StartWatch(initTime time.Time) {
 	defer close(stopCh)
 
 	// run controllers
-	go podController.Run(1, stopCh)
-	go hpaController.Run(1, stopCh)
+	go podController.Run(config.WatcherThreads(), stopCh)
+	go hpaController.Run(config.WatcherThreads(), stopCh)
 
 	// wait forever
 	select {}

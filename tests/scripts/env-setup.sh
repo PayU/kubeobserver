@@ -89,7 +89,7 @@ kind load docker-image $TEST_APP_DOCKER_NAME --name $CLUSTER_NAME
 
 echo "************** ADDING METRIC SERVER **************"
 kubectl apply -f $PWD/tests/scripts/metrics-server.yaml
-kubectl patch deployment metrics-server -n kube-system -p '{"spec":{"template":{"spec":{"containers":[{"name":"metrics-server","args":["--cert-dir=/tmp", "--secure-port=4443", "--kubelet-insecure-tls","--kubelet-preferred-address-types=InternalIP"]}]}}}}'
+kubectl patch deployment metrics-server -n kube-system -p '{"spec":{"template":{"spec":{"containers":[{"name":"metrics-server","args":["--cert-dir=/tmp", "--secure-port=4443", "--kubelet-insecure-tls", "--kubelet-preferred-address-types=InternalIP", "--metric-resolution=5s"]}]}}}}'
 echo "sleeping for 20 seconds to make sure metric server is working"
 sleep 20
 echo "************** ENV SETUP FINISHED **************"

@@ -93,13 +93,27 @@ if [ -z "$res" ]; then
     fi
 fi
 
-echo "2) hpa-v2beta1 test"
+echo "2) hpa-v2beta1 create test"
 kubectl apply -f $PWD/tests/manifests/hpa-v2beta1.yaml
 sleep 5
-res=$(docker logs $DOCKER_NAME 2>&1 | grep "og recevier event message[New HorizontalPodAutoscaler resource [\`default/hello-world-v2-beta1\`]")
+res=$(docker logs $DOCKER_NAME 2>&1 | grep "recevier event message[New HorizontalPodAutoscaler resource [\`default/hello-world-v2-beta1\`]")
 if [ -z "$res" ]; then
     echo "error: kubeobserver did not process hpa create event. exit tests with exit code 1.."
     exit 1
 fi
+
+echo "3) scale up event test"
+helloWorldPodName=$(kubectl get pods --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}')
+# start cpu stress on the pod
+echo "starting 30 seconds of cpu stress on the test pod"
+kubectl exec -it $helloWorldPodName -- bash -c "stress --cpu 1 --timeout 30"
+echo "sleep for 75 seconds for scale up event to finish"
+sleep 75
+res=$(docker logs $DOCKER_NAME 2>&1 | grep "scale \`UP\` event has finished in \`local-cluster\` cluster. current-replicas:\`10\` desired-replicas:\`10\`")
+if [ -z "$res" ]; then
+    echo "error: kubeobserver did not well process hpa scale up event. exit tests with exit code 1.."
+    exit 1
+fi
+
 
 echo "************* TESTS FINISHED SUCCESSFULLY *************"

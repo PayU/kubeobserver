@@ -37,6 +37,7 @@ Kubeobserver is configurable through environment variables.
 | SLACK_TOKEN | false | slack bot app token for slack recevier | empty-string |
 | K8S_CONF_FILE_PATH | false | outside of a k8s cluster", "a k8s config file | empty-string |
 | DEFAULT_RECEIVER | false | name of the default recevier for all controller watchers | "slack" |
+| WATCHER_THREADS | false | number of goroutines for each controller watcher | 10 |
 | PORT | true | http server port kubeobserver listens on | - |
 
 ### Client settings

@@ -95,6 +95,7 @@ func newPodController() *controller {
 // podEventsHandler is the business logic of the pod controller.
 // In case an error happened, it has to simply return the error.
 func podEventsHandler(key string, indexer cache.Indexer) error {
+	log.Debug().Msg("running podEventsHandler func")
 	event := podEvent{}
 	json.Unmarshal([]byte(key), &event)
 
@@ -153,7 +154,7 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 		podUpdates := make([]string, 0)
 
 		// make sure the check update events the happend on the same pod
-		if newPod.GetObjectMeta().GetCreationTimestamp() != oldPod.GetObjectMeta().GetCreationTimestamp() {
+		if newPod.GetObjectMeta() == nil || newPod.GetObjectMeta().GetCreationTimestamp() != oldPod.GetObjectMeta().GetCreationTimestamp() {
 			return nil
 		}
 

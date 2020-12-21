@@ -18,8 +18,6 @@ import (
 
 const hpaSlackUserIdsAnnotationName = "hpa-watch-kubeobserver.io/slack_users_id"
 
-var hpaController *controller
-
 type hpaEvent struct {
 	EventName  receivers.EventName
 	HpaName    string
@@ -32,6 +30,7 @@ func newHPAController() *controller {
 	hpaListWatcher := cache.NewListWatchFromClient(k8sClient.Clientset.AutoscalingV2beta1().RESTClient(), "HorizontalPodAutoscalers", v1.NamespaceAll, fields.Everything())
 
 	// create the workqueue
+	// queue := workqueue.NewDelayingQueue()
 	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
 
 	// Bind the workqueue to a cache with the help of an informer. This way we make sure that
@@ -39,7 +38,6 @@ func newHPAController() *controller {
 	indexer, informer := cache.NewIndexerInformer(hpaListWatcher, &v2beta1.HorizontalPodAutoscaler{}, 0, cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(obj)
-
 			if err == nil {
 				out, err := json.Marshal(hpaEvent{
 					EventName:  receivers.AddEvent,
@@ -55,9 +53,6 @@ func newHPAController() *controller {
 		},
 		UpdateFunc: func(old interface{}, new interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(new)
-
-			log.Info().Msg("in HPA update event")
-
 			if err == nil {
 				out, err := json.Marshal(hpaEvent{
 					EventName:  receivers.UpdateEvent,
@@ -67,14 +62,12 @@ func newHPAController() *controller {
 				})
 
 				if err == nil {
-					log.Info().Msg("second error is nil")
 					queue.Add(string(out))
 				}
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(obj)
-
 			if err == nil {
 				out, err := json.Marshal(hpaEvent{
 					EventName:  receivers.DeleteEvent,
@@ -90,14 +83,13 @@ func newHPAController() *controller {
 		},
 	}, cache.Indexers{})
 
-	hpaController = newController(queue, indexer, informer, hpaEventsHandler, "HorizontalPodAutoscaler")
-	return hpaController
+	return newController(queue, indexer, informer, hpaEventsHandler, "HorizontalPodAutoscaler")
 }
 
 // hpaEventsHandler is the business logic of the hpa controller.
 // In case an error happened, it has to simply return the error.
 func hpaEventsHandler(key string, indexer cache.Indexer) error {
-	log.Info().Msg("Starting hpaEventsHandler")
+	log.Debug().Msg("running hpaEventsHandler func")
 	event := hpaEvent{}
 	json.Unmarshal([]byte(key), &event)
 
@@ -114,9 +106,11 @@ func hpaEventsHandler(key string, indexer cache.Indexer) error {
 
 	switch event.EventName {
 	case "Add":
-		log.Debug().Msg(fmt.Sprintf("handling 'Add' event for HorizontalPodAutoscaler[%s]", event.HpaName))
-		eventMessage = fmt.Sprintf("New HorizontalPodAutoscaler resource [`%s`] added to `%s` cluster", event.HpaName, config.ClusterName())
-		log.Debug().Msg(eventMessage)
+		if (applicationInitTime).Before(event.NewHpaData.ObjectMeta.CreationTimestamp.Time) {
+			log.Debug().Msg(fmt.Sprintf("handling 'Add' event for HorizontalPodAutoscaler[%s]", event.HpaName))
+			eventMessage = fmt.Sprintf("New HorizontalPodAutoscaler resource [`%s`] added to `%s` cluster", event.HpaName, config.ClusterName())
+			log.Debug().Msg(eventMessage)
+		}
 
 	case "Delete":
 		log.Debug().Msg(fmt.Sprintf("handling 'Delete' event for HorizontalPodAutoscaler[%s]", event.HpaName))
@@ -137,24 +131,8 @@ func hpaEventsHandler(key string, indexer cache.Indexer) error {
 			return nil
 		}
 
-		fmt.Printf("%v", oldHPAStatus)
-		fmt.Println("------------------")
-		fmt.Printf("%v", newHPAStatus)
-
-		// new HPA event detected
-		if oldHPAStatus.CurrentReplicas == oldHPAStatus.CurrentReplicas {
-			if newHPAStatus.CurrentReplicas > newHPAStatus.DesiredReplicas {
-				eventMessage = fmt.Sprintf("scale `DOWN` event has detected by HorizontalPodAutoscaler [`%s`] in `%s` cluster. starting to `decrease` pod number. current-replicas:`%d` desired-replicas:`%d`",
-					event.HpaName, config.ClusterName(), newHPAStatus.CurrentReplicas, newHPAStatus.DesiredReplicas)
-				log.Debug().Msg(eventMessage)
-			}
-
-			if newHPAStatus.CurrentReplicas < newHPAStatus.DesiredReplicas {
-				eventMessage = fmt.Sprintf("scale `UP` event has detected by HorizontalPodAutoscaler[`%s`] in `%s` cluster. starting to `increase` pod number.  current-replicas:`%d` desired-replicas:`%d`",
-					event.HpaName, config.ClusterName(), newHPAStatus.CurrentReplicas, newHPAStatus.DesiredReplicas)
-				log.Debug().Msg(eventMessage)
-			}
-		}
+		log.Debug().Msg(fmt.Sprintf("Replica Status HorizontalPodAutoscaler[%s]. old current replicas[%d], old desired-replicas[%d]. new current replicas[%d], new desired-replicas[%d]",
+			event.HpaName, oldHPAStatus.CurrentReplicas, oldHPAStatus.DesiredReplicas, newHPAStatus.CurrentReplicas, newHPAStatus.DesiredReplicas))
 
 		// Scale Up Flow
 		if oldHPAStatus.CurrentReplicas < oldHPAStatus.DesiredReplicas {
@@ -181,6 +159,21 @@ func hpaEventsHandler(key string, indexer cache.Indexer) error {
 
 			if newHPAStatus.CurrentReplicas == newHPAStatus.DesiredReplicas {
 				eventMessage = fmt.Sprintf("HorizontalPodAutoscaler[`%s`] scale `DOWN` event has finished in `%s` cluster. current-replicas:`%d` desired-replicas:`%d`",
+					event.HpaName, config.ClusterName(), newHPAStatus.CurrentReplicas, newHPAStatus.DesiredReplicas)
+				log.Debug().Msg(eventMessage)
+			}
+		}
+
+		// new HPA event detected, checking both cases - scale UP or sacale DOWN event
+		if eventMessage == "" {
+			if newHPAStatus.CurrentReplicas > newHPAStatus.DesiredReplicas {
+				eventMessage = fmt.Sprintf("scale `DOWN` event has detected by HorizontalPodAutoscaler [`%s`] in `%s` cluster. starting to `decrease` pod number. current-replicas:`%d` desired-replicas:`%d`",
+					event.HpaName, config.ClusterName(), newHPAStatus.CurrentReplicas, newHPAStatus.DesiredReplicas)
+				log.Debug().Msg(eventMessage)
+			}
+
+			if newHPAStatus.CurrentReplicas < newHPAStatus.DesiredReplicas {
+				eventMessage = fmt.Sprintf("scale `UP` event has detected by HorizontalPodAutoscaler[`%s`] in `%s` cluster. starting to `increase` pod number.  current-replicas:`%d` desired-replicas:`%d`",
 					event.HpaName, config.ClusterName(), newHPAStatus.CurrentReplicas, newHPAStatus.DesiredReplicas)
 				log.Debug().Msg(eventMessage)
 			}
