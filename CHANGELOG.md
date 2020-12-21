@@ -1,3 +1,15 @@
+## 1.1.0 (December 21th, 2020)
+ 
+FEATURES:
+ * **HPA Watcher**: Add Horizontal Pod Autoscaler events watcher.
+ * **Configuration**: Add WATCHER_THREADS configuration - controller events can be process in parallel when value > 1
+
+BUG FIXES:
+ * Fixed panic for nil pointer reference on pod watcher controller
+
+QUALITY:
+ * Added end2end tests using kind cluster
+
 ## 1.0.0 (June 25th, 2020)
 
 FEATURES:
