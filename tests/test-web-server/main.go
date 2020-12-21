@@ -39,6 +39,6 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	http.HandleFunc("/", handler)
-	fmt.Println("server is listen on port 8888")
+	fmt.Println("server is listening on port 8888")
 	log.Fatal(http.ListenAndServe(":8888", nil))
 }
