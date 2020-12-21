@@ -16,14 +16,13 @@ import (
 )
 
 var ignorePodUpdateAnnotationName = "pod-update-kubeobserver.io/ignore"
-var receiversAnnotationName = "kubeobserver.io/receivers"
 var watchPodInitcontainersAnnotationName = "pod-init-container-kubeobserver.io/watch"
-var slackUserIdsAnnotationName = "pod-watch-kubeobserver.io/slack_users_id"
+var podSlackUserIdsAnnotationName = "pod-watch-kubeobserver.io/slack_users_id"
 
 var podController *controller
 
 type podEvent struct {
-	EventName  string
+	EventName  receivers.EventName
 	PodName    string
 	NewPodData *v1.Pod
 	OldPodData *v1.Pod
@@ -45,7 +44,7 @@ func newPodController() *controller {
 
 			if err == nil && shouldWatchPod(key) {
 				out, err := json.Marshal(podEvent{
-					EventName:  "Add",
+					EventName:  receivers.AddEvent,
 					PodName:    key,
 					NewPodData: obj.(*v1.Pod),
 					OldPodData: nil,
@@ -61,7 +60,7 @@ func newPodController() *controller {
 
 			if err == nil && shouldWatchPod(key) {
 				out, err := json.Marshal(podEvent{
-					EventName:  "Update",
+					EventName:  receivers.UpdateEvent,
 					PodName:    key,
 					NewPodData: new.(*v1.Pod),
 					OldPodData: old.(*v1.Pod),
@@ -76,7 +75,7 @@ func newPodController() *controller {
 			key, err := cache.MetaNamespaceKeyFunc(obj)
 			if err == nil && shouldWatchPod(key) {
 				out, err := json.Marshal(podEvent{
-					EventName:  "Delete",
+					EventName:  receivers.DeleteEvent,
 					PodName:    key,
 					NewPodData: nil,
 					OldPodData: nil,
@@ -96,6 +95,7 @@ func newPodController() *controller {
 // podEventsHandler is the business logic of the pod controller.
 // In case an error happened, it has to simply return the error.
 func podEventsHandler(key string, indexer cache.Indexer) error {
+	log.Debug().Msg("running podEventsHandler func")
 	event := podEvent{}
 	json.Unmarshal([]byte(key), &event)
 
@@ -109,7 +109,6 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 	var podControllerKind string
 	var podControllerName string
 	var eventMessage strings.Builder
-	eventReceivers := make([]string, 0)
 	podWatchSlackUsersID := make([]string, 0)
 
 	if newPod != nil {
@@ -124,11 +123,7 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 		}
 	}
 
-	if podAnnotations != nil && podAnnotations[receiversAnnotationName] != "" {
-		eventReceivers = strings.Split(podAnnotations[receiversAnnotationName], ",")
-	}
-
-	eventReceivers = append(eventReceivers, config.DefaultReceiver())
+	eventReceivers := common.BuildEventReceiversList(podAnnotations)
 
 	log.Debug().
 		Msg(fmt.Sprintf("found %d event receivers for pod %s in namespace %s. receivers:%s. event-type: %s.",
@@ -136,6 +131,9 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 
 	switch event.EventName {
 	case "Add":
+		log.Debug().Msg(fmt.Sprintf("applicationInitTime: %v. pod creation time: %v",
+			applicationInitTime, newPod.ObjectMeta.CreationTimestamp.Time))
+
 		if (applicationInitTime).Before(newPod.ObjectMeta.CreationTimestamp.Time) {
 			messagePodName := podName
 			if podControllerKind == "StatefulSet" {
@@ -151,12 +149,12 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 	case "Delete":
 		eventMessage.WriteString(fmt.Sprintf("The pod `%s` in `%s` cluster has been deleted\n", podName, config.ClusterName()))
 	default:
-		// update pod evenet
+		// update pod event
 		watchInitContainers := false
 		podUpdates := make([]string, 0)
 
 		// make sure the check update events the happend on the same pod
-		if newPod.GetObjectMeta().GetCreationTimestamp() != oldPod.GetObjectMeta().GetCreationTimestamp() {
+		if newPod.GetObjectMeta() == nil || newPod.GetObjectMeta().GetCreationTimestamp() != oldPod.GetObjectMeta().GetCreationTimestamp() {
 			return nil
 		}
 
@@ -164,8 +162,8 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 			ignoreEvent = podAnnotations[ignorePodUpdateAnnotationName] == "true"
 			watchInitContainers = podAnnotations[watchPodInitcontainersAnnotationName] == "true"
 
-			if podAnnotations[slackUserIdsAnnotationName] != "" {
-				podWatchSlackUsersID = strings.Split(podAnnotations[slackUserIdsAnnotationName], ",")
+			if podAnnotations[podSlackUserIdsAnnotationName] != "" {
+				podWatchSlackUsersID = strings.Split(podAnnotations[podSlackUserIdsAnnotationName], ",")
 			}
 		}
 

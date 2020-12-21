@@ -37,6 +37,7 @@ Kubeobserver is configurable through environment variables.
 | SLACK_TOKEN | false | slack bot app token for slack recevier | empty-string |
 | K8S_CONF_FILE_PATH | false | outside of a k8s cluster", "a k8s config file | empty-string |
 | DEFAULT_RECEIVER | false | name of the default recevier for all controller watchers | "slack" |
+| WATCHER_THREADS | false | number of goroutines for each controller watcher | 10 |
 | PORT | true | http server port kubeobserver listens on | - |
 
 ### Client settings
@@ -65,6 +66,7 @@ The configuration is made by using k8s controller annotations under the root tem
 | *All* | kubeobserver.io/receivers | comma separated string | a comma separated string of recevier names that the events will be publish to. unknown names will be ignored | default recevier is defined in kubeobserver using DEFAULT_RECEIVER env variable |
 | pod-watcher | pod-update-kubeobserver.io/ignore | boolean | pod watcher will ignore 'Update' events and notify only on 'Add'/'Delete' events | false |
 | pod-watcher | pod-watch-kubeobserver.io/slack_users_id | comma separated string | comma separated string of slack users IDs. These users will be mentioned on Kubeobserver's slack message if and when crashLoopBack events will occur | "" |
+| hpa-watcher | hpa-watch-kubeobserver.io/slack_users_id | comma separated string | comma separated string of slack users IDs. These users will be mentioned on Kubeobserver's slack message if and when Horizontal Pod Autoscaler events will occur | "" |
 
 ## Receivers
 
