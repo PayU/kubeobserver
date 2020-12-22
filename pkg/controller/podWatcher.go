@@ -15,9 +15,12 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
-var ignorePodUpdateAnnotationName = "pod-update-kubeobserver.io/ignore"
-var watchPodInitcontainersAnnotationName = "pod-init-container-kubeobserver.io/watch"
-var podSlackUserIdsAnnotationName = "pod-watch-kubeobserver.io/slack_users_id"
+const (
+	ignoreAllPodEventsAnnotationName     = "pod-kubeobserver.io/ignore"
+	ignorePodUpdateAnnotationName        = "pod-update-kubeobserver.io/ignore"
+	watchPodInitcontainersAnnotationName = "pod-init-container-kubeobserver.io/watch"
+	podSlackUserIdsAnnotationName        = "pod-watch-kubeobserver.io/slack_users_id"
+)
 
 var podController *controller
 
@@ -41,12 +44,12 @@ func newPodController() *controller {
 	indexer, informer := cache.NewIndexerInformer(podListWatcher, &v1.Pod{}, 0, cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(obj)
-
-			if err == nil && shouldWatchPod(key) {
+			newPod := obj.(*v1.Pod)
+			if err == nil && shouldWatchPod(key, newPod) {
 				out, err := json.Marshal(podEvent{
 					EventName:  receivers.AddEvent,
 					PodName:    key,
-					NewPodData: obj.(*v1.Pod),
+					NewPodData: newPod,
 					OldPodData: nil,
 				})
 
@@ -57,12 +60,12 @@ func newPodController() *controller {
 		},
 		UpdateFunc: func(old interface{}, new interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(new)
-
-			if err == nil && shouldWatchPod(key) {
+			newPod := new.(*v1.Pod)
+			if err == nil && shouldWatchPod(key, newPod) {
 				out, err := json.Marshal(podEvent{
 					EventName:  receivers.UpdateEvent,
 					PodName:    key,
-					NewPodData: new.(*v1.Pod),
+					NewPodData: newPod,
 					OldPodData: old.(*v1.Pod),
 				})
 
@@ -73,7 +76,8 @@ func newPodController() *controller {
 		},
 		DeleteFunc: func(obj interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(obj)
-			if err == nil && shouldWatchPod(key) {
+			pod := obj.(*v1.Pod)
+			if err == nil && shouldWatchPod(key, pod) {
 				out, err := json.Marshal(podEvent{
 					EventName:  receivers.DeleteEvent,
 					PodName:    key,
@@ -154,7 +158,7 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 		podUpdates := make([]string, 0)
 
 		// make sure the check update events the happend on the same pod
-		if newPod.GetObjectMeta() == nil || newPod.GetObjectMeta().GetCreationTimestamp() != oldPod.GetObjectMeta().GetCreationTimestamp() {
+		if newPod == nil || oldPod == nil || newPod.GetObjectMeta().GetCreationTimestamp() != oldPod.GetObjectMeta().GetCreationTimestamp() {
 			return nil
 		}
 
@@ -287,14 +291,24 @@ func parseContainerState(cs v1.ContainerState) string {
 // iterate over the exclude pod name slice
 // and check if one (or more) of the slice members contains the pod name
 // if so, return false meaning that the event will ignored
-func shouldWatchPod(podName string) bool {
+// in addition, check if the specific pod is mark as ignore (in annotations)
+// if so, return false. otherwise return true.
+func shouldWatchPod(podNamespaceKey string, pod *v1.Pod) bool {
+	var shouldWatch = true
+
 	for _, pattern := range config.ExcludePodNamePatterns() {
-		if strings.Contains(podName, pattern) {
-			return false
+		if strings.Contains(podNamespaceKey, pattern) {
+			shouldWatch = false
 		}
 	}
 
-	return true
+	shouldWatch = pod.Annotations == nil || pod.Annotations[ignoreAllPodEventsAnnotationName] != "true"
+
+	if !shouldWatch {
+		log.Debug().Msg(fmt.Sprintf("pod-watcher: ignoring pod [%s] event", podNamespaceKey))
+	}
+
+	return shouldWatch
 }
 
 // IsSPodControllerSync is used for server health check
