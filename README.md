@@ -62,7 +62,7 @@ The configuration is made by using k8s controller annotations under the root tem
 
 | Controller name | Annotation | Value type | Description | Default |
 | --- | --- | --- | --- | --- |
-| pod-watcher | pod-kubeobserver.io/ignore | boolean | pod watcher will ignore the pod events | false |
+| pod-watcher | pod-kubeobserver.io/ignore | boolean | pod watcher will ignore all the pod events | false |
 | pod-watcher | pod-init-container-kubeobserver.io/watch | boolean | pod watcher will trigger events for init containers related to the pod | false |
 | *All* | kubeobserver.io/receivers | comma separated string | a comma separated string of recevier names that the events will be publish to. unknown names will be ignored | default recevier is defined in kubeobserver using DEFAULT_RECEIVER env variable |
 | pod-watcher | pod-update-kubeobserver.io/ignore | boolean | pod watcher will ignore 'Update' events and notify only on 'Add'/'Delete' events | false |
