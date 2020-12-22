@@ -1,3 +1,8 @@
+## 1.2.0 (December 22th, 2020)
+ 
+FEATURES:
+ * **Pod-Watcher - Ignore Pod Event**: Enables ignoring all events using annotation
+
 ## 1.1.0 (December 21th, 2020)
  
 FEATURES:
