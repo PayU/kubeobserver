@@ -23,6 +23,12 @@ $ docker build .
 $ docker run -v <local_path_to_kube_config>:/home -e PORT=8000 -e K8S_CLUSTER_NAME=cluster-name -e K8S_CONF_FILE_PATH=/home/config -p 8000:8000 <docker_image_id>
 ```
 
+## Run Using Offical Docker
+
+```bash
+docker run zooz/kubeobserver:1.2.0
+```
+
 ## Configuration
 
 ### Kubeobserver Configuration
