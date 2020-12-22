@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
 )
@@ -72,10 +73,37 @@ func TestParseContainerState(t *testing.T) {
 }
 
 func TestShouldWatchPod(t *testing.T) {
-	shouldWatch := shouldWatchPod("mockPod")
+	pod := &v1.Pod{
+		Status:     v1.PodStatus{},
+		Spec:       v1.PodSpec{},
+		ObjectMeta: metav1.ObjectMeta{},
+		TypeMeta:   metav1.TypeMeta{},
+	}
+
+	shouldWatch := shouldWatchPod("mockPod", pod)
 
 	if reflect.TypeOf(shouldWatch).Kind() != reflect.Bool || shouldWatch != true {
 		t.Error("TestShouldWatchPod: test hasn't evaluated correctly watch status of mockPod")
+	}
+}
+
+func TestShouldIgnorePod(t *testing.T) {
+	podAnnotations := make(map[string]string, 0)
+	podAnnotations["pod-kubeobserver.io/ignore"] = "true"
+
+	pod := &v1.Pod{
+		Status: v1.PodStatus{},
+		Spec:   v1.PodSpec{},
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations: podAnnotations,
+		},
+		TypeMeta: metav1.TypeMeta{},
+	}
+
+	shouldWatch := shouldWatchPod("mockPod", pod)
+
+	if reflect.TypeOf(shouldWatch).Kind() != reflect.Bool || shouldWatch != false {
+		t.Error("TestShouldIgnorePod: test hasn't evaluated correctly. mockPod should be ignored")
 	}
 }
 
