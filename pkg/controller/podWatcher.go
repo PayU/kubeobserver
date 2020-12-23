@@ -294,15 +294,15 @@ func parseContainerState(cs v1.ContainerState) string {
 // in addition, check if the specific pod is mark as ignore (in annotations)
 // if so, return false. otherwise return true.
 func shouldWatchPod(podNamespaceKey string, pod *v1.Pod) bool {
-	var shouldWatch = true
+	var shouldWatch = pod.Annotations == nil || pod.Annotations[ignoreAllPodEventsAnnotationName] != "true"
 
-	for _, pattern := range config.ExcludePodNamePatterns() {
-		if strings.Contains(podNamespaceKey, pattern) {
-			shouldWatch = false
+	if shouldWatch {
+		for _, pattern := range config.ExcludePodNamePatterns() {
+			if strings.Contains(podNamespaceKey, pattern) {
+				shouldWatch = false
+			}
 		}
 	}
-
-	shouldWatch = pod.Annotations == nil || pod.Annotations[ignoreAllPodEventsAnnotationName] != "true"
 
 	if !shouldWatch {
 		log.Debug().Msg(fmt.Sprintf("pod-watcher: ignoring pod [%s] event", podNamespaceKey))
