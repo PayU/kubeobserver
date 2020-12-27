@@ -1,3 +1,8 @@
+## 1.2.1 (December 27th, 2020)
+ 
+BUG FIXES:
+ * fix `shouldWatchPod` function logic for pod watcher
+
 ## 1.2.0 (December 22th, 2020)
  
 FEATURES:
