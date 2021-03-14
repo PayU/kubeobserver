@@ -107,7 +107,8 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 	newPod := event.NewPodData
 	oldPod := event.OldPodData
 
-	var watchEvent bool = false
+	var watchUpdateEvent bool = false
+	var watchEvent bool = true
 	var podNamespace string
 	var podAnnotations map[string]string
 	var podControllerKind string
@@ -135,6 +136,7 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 
 	switch event.EventName {
 	case "Add":
+	    watchEvent = true
 		log.Debug().Msg(fmt.Sprintf("applicationInitTime: %v. pod creation time: %v",
 			applicationInitTime, newPod.ObjectMeta.CreationTimestamp.Time))
 
@@ -151,9 +153,11 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 		}
 
 	case "Delete":
+	    watchEvent = true
 		eventMessage.WriteString(fmt.Sprintf("The pod `%s` in `%s` cluster has been deleted\n", podName, config.ClusterName()))
 	default:
 		// update pod event
+		watchEvent = watchUpdateEvent
 		watchInitContainers := false
 		podUpdates := make([]string, 0)
 
@@ -163,7 +167,7 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 		}
 
 		if podAnnotations != nil {
-			watchEvent = podAnnotations[ignorePodUpdateAnnotationName] == "true"
+			watchUpdateEvent = podAnnotations[watchPodUpdateAnnotationName] == "true"
 			watchInitContainers = podAnnotations[watchPodInitcontainersAnnotationName] == "true"
 
 			if podAnnotations[podSlackUserIdsAnnotationName] != "" {
@@ -206,9 +210,9 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 
 		additionalInfo["pod_watcher_users_ids"] = podWatchSlackUsersID
 
-		// if we found 'ignore-update-event' annotation but the pod is in crash-loop-back
-		// we will still send the event so we can notify about it.
-		// in any other case we will send the event as long as 'ignore-update-event' annotations not set to true
+		// if updated events set to false, but the pod is in crash-loop-back we will still send the
+		// event so we can notify about it.
+		// events of add/delete will be sent in any case.
 		if watchEvent || onCrashLoopBack {
 			receiverEvent := receivers.ReceiverEvent{
 				EventName:      event.EventName,
