@@ -17,7 +17,7 @@ import (
 
 const (
 	ignoreAllPodEventsAnnotationName     = "pod-kubeobserver.io/ignore"
-	ignorePodUpdateAnnotationName        = "pod-update-kubeobserver.io/ignore"
+	watchPodUpdateAnnotationName        = "pod-update-kubeobserver.io/watch"
 	watchPodInitcontainersAnnotationName = "pod-init-container-kubeobserver.io/watch"
 	podSlackUserIdsAnnotationName        = "pod-watch-kubeobserver.io/slack_users_id"
 )
@@ -107,7 +107,7 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 	newPod := event.NewPodData
 	oldPod := event.OldPodData
 
-	var ignoreEvent bool = false
+	var watchEvent bool = true
 	var podNamespace string
 	var podAnnotations map[string]string
 	var podControllerKind string
@@ -154,6 +154,7 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 		eventMessage.WriteString(fmt.Sprintf("The pod `%s` in `%s` cluster has been deleted\n", podName, config.ClusterName()))
 	default:
 		// update pod event
+		watchEvent = false
 		watchInitContainers := false
 		podUpdates := make([]string, 0)
 
@@ -163,7 +164,7 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 		}
 
 		if podAnnotations != nil {
-			ignoreEvent = podAnnotations[ignorePodUpdateAnnotationName] == "true"
+			watchEvent = podAnnotations[watchPodUpdateAnnotationName] == "true"
 			watchInitContainers = podAnnotations[watchPodInitcontainersAnnotationName] == "true"
 
 			if podAnnotations[podSlackUserIdsAnnotationName] != "" {
@@ -206,10 +207,10 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 
 		additionalInfo["pod_watcher_users_ids"] = podWatchSlackUsersID
 
-		// if we found 'ignore-update-event' annotation but the pod is in crash-loop-back
-		// we will still send the event so we can notify about it.
-		// in any other case we will send the event as long as 'ignore-update-event' annotations not set to true
-		if !ignoreEvent || onCrashLoopBack {
+		// if updated events set to false, but the pod is in crash-loop-back we will still send the
+		// event so we can notify about it.
+		// events of add/delete will be sent in any case.
+		if watchEvent || onCrashLoopBack {
 			receiverEvent := receivers.ReceiverEvent{
 				EventName:      event.EventName,
 				Message:        eventMessage.String(),
