@@ -107,7 +107,6 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 	newPod := event.NewPodData
 	oldPod := event.OldPodData
 
-	var watchUpdateEvent bool = false
 	var watchEvent bool = true
 	var podNamespace string
 	var podAnnotations map[string]string
@@ -136,7 +135,6 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 
 	switch event.EventName {
 	case "Add":
-	    watchEvent = true
 		log.Debug().Msg(fmt.Sprintf("applicationInitTime: %v. pod creation time: %v",
 			applicationInitTime, newPod.ObjectMeta.CreationTimestamp.Time))
 
@@ -153,11 +151,10 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 		}
 
 	case "Delete":
-	    watchEvent = true
 		eventMessage.WriteString(fmt.Sprintf("The pod `%s` in `%s` cluster has been deleted\n", podName, config.ClusterName()))
 	default:
 		// update pod event
-		watchEvent = watchUpdateEvent
+		watchEvent = false
 		watchInitContainers := false
 		podUpdates := make([]string, 0)
 
@@ -167,7 +164,7 @@ func podEventsHandler(key string, indexer cache.Indexer) error {
 		}
 
 		if podAnnotations != nil {
-			watchUpdateEvent = podAnnotations[watchPodUpdateAnnotationName] == "true"
+			watchEvent = podAnnotations[watchPodUpdateAnnotationName] == "true"
 			watchInitContainers = podAnnotations[watchPodInitcontainersAnnotationName] == "true"
 
 			if podAnnotations[podSlackUserIdsAnnotationName] != "" {
