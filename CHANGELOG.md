@@ -1,3 +1,8 @@
+## 1.3.0 (March 16th, 2021)
+ 
+CHANGES:
+ * **Pod-Watcher - Watch Update**: Pod update events will not be watched as default
+
 ## 1.2.0 (December 22th, 2020)
  
 FEATURES:
