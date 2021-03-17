@@ -42,7 +42,7 @@ func (sr *SlackReceiver) HandleEvent(receiverEvent ReceiverEvent, c chan error) 
 	var thumbURL string
 	var text string
 
-	// this will be true in case some event has slack recevier
+	// this will be true in case some event has slack receiver
 	// but no channels were provided in the configuration
 	if len(sr.ChannelNames) == 0 {
 		c <- errors.New("HandleEvent of slack was triggered but no slack channel names were found in configuration")
@@ -65,7 +65,7 @@ func (sr *SlackReceiver) HandleEvent(receiverEvent ReceiverEvent, c chan error) 
 
 	if additionalInfo[common.PodCrashLoopbackStringIdentifier()] == true { // crash loopback event
 		// this will make sure the red color flag
-		// add warning thumb on the right side of the meesage.
+		// add warning thumb on the right side of the message.
 		// in addition, skull icons will appear on start and the end of the message
 		var msgBuilder strings.Builder
 
@@ -82,6 +82,18 @@ func (sr *SlackReceiver) HandleEvent(receiverEvent ReceiverEvent, c chan error) 
 		colorType = "#C70039"
 		thumbURL = warningIcon
 		text = msgBuilder.String()
+	} else if additionalInfo[common.PodHpaStringIdentifier()] == true {
+        var msgBuilder strings.Builder
+
+        msgBuilder.WriteString("`" + string(eventName) + "`" + " event received: " + message)
+
+        usersIDS := additionalInfo["pod_watcher_users_ids"].([]string)
+
+        for _, userID := range usersIDS {
+            msgBuilder.WriteString(fmt.Sprintf("<@%s>", userID))
+        }
+
+        text = msgBuilder.String()
 	} else {
 		text = "`" + string(eventName) + "`" + " event received: " + message
 	}
@@ -104,7 +116,7 @@ func (sr *SlackReceiver) HandleEvent(receiverEvent ReceiverEvent, c chan error) 
 
 		if err != nil {
 			var errStr strings.Builder
-			errStr.WriteString("slack recevier got unexpected error -> ")
+			errStr.WriteString("slack receiver got unexpected error -> ")
 			errStr.WriteString(err.Error())
 			c <- errors.New(errStr.String())
 		}
@@ -115,7 +127,7 @@ func postMessage(slackClient *slack.Client, channel string, attachment *slack.At
 	channelID, timestamp, err := slackClient.PostMessage(channel, slack.MsgOptionAttachments(*attachment))
 
 	if err == nil {
-		log.Debug().Msg(fmt.Sprintf("Succefully posted a message to channel %s at %s", channelID, timestamp))
+		log.Debug().Msg(fmt.Sprintf("Successfully posted a message to channel %s at %s", channelID, timestamp))
 	} else {
 		if strings.HasPrefix(err.Error(), "slack rate limit exceeded") {
 			// slack api allows bursts over that limit for short periods. However,
@@ -126,7 +138,7 @@ func postMessage(slackClient *slack.Client, channel string, attachment *slack.At
 			channelID, timestamp, err = slackClient.PostMessage(channel, slack.MsgOptionAttachments(*attachment))
 
 			if err == nil {
-				log.Debug().Msg(fmt.Sprintf("Succefully posted a message to channel %s at %s", channelID, timestamp))
+				log.Debug().Msg(fmt.Sprintf("Successfully posted a message to channel %s at %s", channelID, timestamp))
 			}
 		}
 	}

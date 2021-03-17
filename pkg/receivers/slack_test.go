@@ -19,8 +19,8 @@ func (m *MockSlackClient) postMessage(ch string, opt slack.MsgOption) (string, t
 	return ch, time.Now(), errors.New("Couldn't send a message")
 }
 
-func (mr *MockSlackReceiver) postMessage(mc *MockSlackClient, channel string, attachement *slack.Attachment) error {
-	_, _, err := mc.postMessage(channel, slack.MsgOptionAttachments(*attachement))
+func (mr *MockSlackReceiver) postMessage(mc *MockSlackClient, channel string, attachment *slack.Attachment) error {
+	_, _, err := mc.postMessage(channel, slack.MsgOptionAttachments(*attachment))
 
 	return err
 }
@@ -36,28 +36,28 @@ func (mr *MockSlackReceiver) handleEvent(e ReceiverEvent, c chan error) {
 	err := mr.postMessage(&client, "mockChannel", &attach)
 
 	if err == nil {
-		c <- errors.New("Problem handling event - should recieve error from MockSlackClient")
+		c <- errors.New("Problem handling event - should receive error from MockSlackClient")
 	}
 }
 
 func TestPostMessage(t *testing.T) {
-	reciever := MockSlackReceiver{}
+	receiver := MockSlackReceiver{}
 	client := MockSlackClient{}
 	attach := slack.Attachment{}
 
-	err := reciever.postMessage(&client, "mockChannel", &attach)
+	err := receiver.postMessage(&client, "mockChannel", &attach)
 
 	if err == nil {
-		t.Errorf("Posting message test has failed - should recieve an error from slackReceiver.postMessage method: %s \n", err)
+		t.Errorf("Posting message test has failed - should receive an error from slackReceiver.postMessage method: %s \n", err)
 	}
 }
 
 func TestHandleEvent(t *testing.T) {
-	reciever := MockSlackReceiver{}
+	receiver := MockSlackReceiver{}
 	event := ReceiverEvent{EventName: "mockEvent", Message: "mockMessage", AdditionalInfo: make(map[string]interface{})}
 	channel := make(chan error)
 
-	reciever.handleEvent(event, channel)
+	receiver.handleEvent(event, channel)
 
 	select {
 	case err := <-channel:

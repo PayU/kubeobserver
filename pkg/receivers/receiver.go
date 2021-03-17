@@ -11,12 +11,12 @@ const (
 	UpdateEvent EventName = "Update"
 )
 
-// ReceiverMap is a global map that map recevier name to he's specific struct
+// ReceiverMap is a global map that map receiver name to he's specific struct
 // each 'Receiver' interface implementation should add himself to this map with an init function that will
 // automatically be called at the start of the application
 var ReceiverMap = make(map[string]Receiver)
 
-// The Receiver interace
+// The Receiver interface
 type Receiver interface {
 	HandleEvent(receiverEvent ReceiverEvent, c chan error)
 }
