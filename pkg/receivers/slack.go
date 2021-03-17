@@ -63,29 +63,40 @@ func (sr *SlackReceiver) HandleEvent(receiverEvent ReceiverEvent, c chan error) 
 	log.Debug().Msg(fmt.Sprintf("received %s message in slack receiver: %s", eventName, message))
 	log.Debug().Msg(fmt.Sprintf("building message in Slack format"))
 
-    var msgBuilder strings.Builder
-
 	if additionalInfo[common.PodCrashLoopbackStringIdentifier()] == true { // crash loopback event
 		// this will make sure the red color flag
 		// add warning thumb on the right side of the message.
 		// in addition, skull icons will appear on start and the end of the message
+		var msgBuilder strings.Builder
+
 		msgBuilder.WriteString(skullIconsSlackStr)
 		msgBuilder.WriteString(message)
 		msgBuilder.WriteString(skullIconsSlackStr)
 
+		usersIDS := additionalInfo["pod_watcher_users_ids"].([]string)
+
+		for _, userID := range usersIDS {
+			msgBuilder.WriteString(fmt.Sprintf("<@%s>", userID))
+		}
+
 		colorType = "#C70039"
 		thumbURL = warningIcon
+		text = msgBuilder.String()
+	} else if additionalInfo[common.PodHpaStringIdentifier()] == true {
+        var msgBuilder strings.Builder
+
+        msgBuilder.WriteString("`" + string(eventName) + "`" + " event received: " + message)
+
+        usersIDS := additionalInfo["pod_watcher_users_ids"].([]string)
+
+        for _, userID := range usersIDS {
+            msgBuilder.WriteString(fmt.Sprintf("<@%s>", userID))
+        }
+
+        text = msgBuilder.String()
 	} else {
-	    msgBuilder.WriteString("`" + string(eventName) + "`" + " event received: " + message)
+		text = "`" + string(eventName) + "`" + " event received: " + message
 	}
-
-    usersIDS := additionalInfo["pod_watcher_users_ids"].([]string)
-
-    for _, userID := range usersIDS {
-        msgBuilder.WriteString(fmt.Sprintf("<@%s>", userID))
-    }
-
-    text = msgBuilder.String()
 
 	attachment := slack.Attachment{
 		Color:      colorType,

@@ -8,10 +8,16 @@ import (
 
 var receiversAnnotationName = "kubeobserver.io/receivers"
 var podCrashLoopbackStringIdentifier = "CrashLoopBackOff"
+var podHpaStringIdentifier = "HorizontalPodAutoscale"
 
 // PodCrashLoopbackStringIdentifier is a getter for k8s api crash loopback string
 func PodCrashLoopbackStringIdentifier() string {
 	return podCrashLoopbackStringIdentifier
+}
+
+// podHpaStringIdentifier is a getter for k8s api hpa
+func PodHpaStringIdentifier() string {
+	return podHpaStringIdentifier
 }
 
 // BuildEventReceiversList builds the list of receivers based on the resource annotations and default configuration
@@ -23,7 +29,7 @@ func BuildEventReceiversList(annotations map[string]string) []string {
 	}
 
 	if len(eventReceivers) == 0 {
-		// set the default recevier in case no receiver has mentioned in resource annotation
+		// set the default receiver in case no receiver has mentioned in resource annotation
 		eventReceivers = append(eventReceivers, config.DefaultReceiver())
 	}
 

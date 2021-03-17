@@ -187,6 +187,7 @@ func hpaEventsHandler(key string, indexer cache.Indexer) error {
 	if eventMessage != "" {
 		additionalInfo := make(map[string]interface{})
 		additionalInfo["pod_watcher_users_ids"] = hpaWatchSlackUsersID
+		additionalInfo[common.PodHpaStringIdentifier()] = true
 
 		receiverEvent := receivers.ReceiverEvent{
 			EventName:      event.EventName,
